@@ -77,7 +77,7 @@ class ScenarioContext:
 class Attacker(AgentExecutor):
     """Red team attacker that generates strategic attacks based on scenario context."""
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL")
@@ -150,7 +150,7 @@ def main():
     parser = argparse.ArgumentParser(description="Security Arena - Attacker Agent")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=9021, help="Port to bind to")
-    parser.add_argument("--model", default="gpt-4o-mini", help="OpenAI model to use")
+    parser.add_argument("--model", default="openai/gpt-oss-20b", help="OpenAI model to use")
     args = parser.parse_args()
 
     agent_card = AgentCard(
