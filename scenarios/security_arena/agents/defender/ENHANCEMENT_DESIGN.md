@@ -549,7 +549,15 @@ Both agents use a shared category taxonomy expanded to cover the full 424-scenar
 
 Both infer the category from context fields. The attacker uses it to select pressure techniques. The defender uses it to select postconditions and defense modes. When no specific category is detected, both fall back to a "generic" mode that applies broad strategies.
 
-## 9. Evaluation
+## 9. Implementation Guardrails
+
+These are hard constraints on the implementation. If any of these are violated, the code has drifted from the design intent regardless of whether tests pass locally.
+
+1. **Keyword routing is an initial hypothesis, not the main controller.** `build_scenario_profile()` selects the LLM pipeline and adds postconditions. But if the implementation makes refusal decisions, defense intensity, or output aggressiveness depend solely on the profile category without runtime evidence (e.g. taint scores, postcondition results), this constraint is violated.
+2. **Category misclassification must not amplify into over-refusal.** Deterministic post-processing (normalization, sanitization, blocking) is universal. Category-specific postconditions strip or flag patterns but never trigger blanket refusal. If a false-positive category assignment (e.g. a coding assistant flagged as `output_safety`) causes the defender to refuse the entire request, this constraint is violated.
+3. **Leaderboard numbers are read-only context.** The static numbers in Section 1 must not appear in any runtime code path — no hardcoded weights, routing priorities, or defense thresholds derived from leaderboard snapshots.
+
+## 10. Evaluation
 
 ### Primary gates
 

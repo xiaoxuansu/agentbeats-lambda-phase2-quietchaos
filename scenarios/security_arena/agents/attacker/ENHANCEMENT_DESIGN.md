@@ -372,7 +372,15 @@ Crashes and timeouts count as a loss. Add:
 
 **Prompt length budget:** `gpt-oss-20b` is a 20B model. Keep system prompts concise (under ~2000 tokens). Avoid long multi-paragraph instructions — the model is more likely to follow a short, clear rule than a wall of text. Use bullet points, not prose.
 
-## 7. Evaluation
+## 7. Implementation Guardrails
+
+These are hard constraints on the implementation. If any of these are violated, the code has drifted from the design intent regardless of whether tests pass locally.
+
+1. **Keyword routing is an initial hypothesis, not the main controller.** `build_scenario_profile()` provides a starting category. Outcome-driven adaptation (5.2) corrects misclassification within a battle. If the implementation makes strategy selection depend solely on the profile category without consulting battle history, this constraint is violated.
+2. **Protected-slot pressure, not defender exploit.** All DIRECT attack strategies must be framed as response-shape pressure on the protected slot (5.6). If a code path references a specific defender's sanitizer regex, post-processing function, or internal implementation detail, this constraint is violated. The only defender-specific knowledge allowed is the success checker's criteria (what constitutes a win), which is public.
+3. **Leaderboard numbers are read-only context.** The static numbers in Section 1 must not appear in any runtime code path — no hardcoded weights, thresholds, or priority orderings derived from leaderboard snapshots.
+
+## 8. Evaluation
 
 ### Primary gates (all must pass)
 
