@@ -62,7 +62,7 @@ Only method patterns are borrowed. No runtime dependency on either repo.
 
 **Parent selection by probability** (`calculate_probabilities.py`): Prompts weighted by scores. High-scoring strategies get reused; low-scoring strategies get replaced.
 
-**Normalization awareness** (`behavioral_engine/nodes/`): NAAMSE preprocesses through Base64 decode → NFKC normalize → translate → ASCII. This means sophisticated defenders normalize before checking, so simple encoding tricks won't transfer. But the current arena defender does NOT normalize — so encoding evasion works today but may not transfer to private/held-out scenarios. Prefer semantic bypasses that survive normalization.
+**Normalization awareness** (`behavioral_engine/nodes/`): NAAMSE preprocesses through Base64 decode → NFKC normalize → translate → ASCII. This means sophisticated defenders normalize before checking, so simple encoding tricks won't transfer. The current arena defender does not normalize (observation only — this MUST NOT drive strategy priority, as private-leaderboard defenders may normalize). Prefer semantic bypasses (protected-slot pressure strategies from 5.6) that survive normalization regardless of defender implementation.
 
 ### From pi-bench
 
@@ -366,7 +366,7 @@ Crashes and timeouts count as a loss. Add:
 - `{{ action }}` (explore/similar/mutate from NAAMSE-style routing)
 - `{{ technique_catalog }}` for this category
 - `{{ avoided_families }}` from history
-- `{{ evasion_hints }}` for DIRECT scenarios
+- `{{ pressure_hints }}` for DIRECT scenarios (protected-slot pressure strategies from 5.6)
 
 **`system.j2`:** Replace scenario-specific technique blocks with category-level guidance. Keep the anti-detection principles and output-only requirements.
 

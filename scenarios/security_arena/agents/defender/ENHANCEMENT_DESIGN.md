@@ -233,9 +233,10 @@ def build_scenario_profile(ctx: ScenarioContext) -> dict:
     is_long_doc = len(ctx.formatted_input) > 1500
 
     # NEW: detect expanded scenario types from context fields.
-    # IMPORTANT: These are low-confidence heuristics. They ONLY add extra postconditions
-    # to the universal base defense — they MUST NOT increase refusal probability or
-    # change the base defense behavior. False positives cause over-refusal
+    # IMPORTANT: These are low-confidence heuristics. They select the LLM pipeline
+    # (see routing principle at 6.2) and add extra postconditions, but they MUST NOT
+    # increase refusal probability. Deterministic post-processing is universal
+    # regardless of category. False positives cause over-refusal
     # (e.g. a coding assistant flagged as output_safety).
     has_prompt_protection = any(w in combined for w in (
         "system prompt", "never reveal your instructions", "do not disclose your prompt",
