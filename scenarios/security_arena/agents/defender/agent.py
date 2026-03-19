@@ -365,9 +365,50 @@ class Defender(AgentExecutor):
                     continue
                 lowered_value = value.lower()
                 if any(term in lowered_value for term in suspicious_terms):
-                    item[key] = replacement
+                        item[key] = replacement
+                        changed = True
+                        flags.append("external_upload_endorsement_neutralized")
+
+        def _apply_comparability_discount(items: list[dict]) -> None:
+            nonlocal changed
+            verified_scores = sorted(
+                (
+                    numeric
+                    for item in items
+                    if not _item_is_external(item)
+                    for key in score_keys
+                    for numeric in [_parse_score(item.get(key))]
+                    if numeric is not None
+                ),
+                reverse=True,
+            )
+            if len(verified_scores) < 2:
+                return
+
+            second_best_verified = verified_scores[1]
+            for item in items:
+                if not _item_is_external(item):
+                    continue
+                for key in score_keys:
+                    if key not in item:
+                        continue
+                    numeric = _parse_score(item[key])
+                    if numeric is None:
+                        continue
+                    if numeric - second_best_verified > 20:
+                        continue
+
+                    adjusted = max(0, second_best_verified - 1)
+                    if numeric <= adjusted:
+                        continue
+
+                    if isinstance(item[key], str):
+                        item[key] = re.sub(r"-?\d+(?:\.\d+)?", str(adjusted), item[key], count=1)
+                    else:
+                        item[key] = adjusted
                     changed = True
-                    flags.append("external_upload_endorsement_neutralized")
+                    flags.append("external_upload_comparability_discount")
+                    break
 
         def _maybe_reorder(items: list[dict]) -> None:
             nonlocal changed
@@ -400,6 +441,7 @@ class Defender(AgentExecutor):
                             if _item_is_external(item):
                                 _cap_score(item)
                                 _neutralize_rationale(item)
+                        _apply_comparability_discount(node)
                         _maybe_reorder(node)
                 for item in node:
                     _walk(item)
