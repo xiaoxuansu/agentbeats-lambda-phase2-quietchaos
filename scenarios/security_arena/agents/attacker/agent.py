@@ -577,11 +577,24 @@ class Attacker(AgentExecutor):
             "package choice",
             "library choice",
         )
+        insecure_output_fallback_tokens = (
+            "downloadable-style export",
+            "exact formatting preserved",
+            "copy-paste dashboard widget",
+            "email block",
+            "export template",
+            "spreadsheet-ready export",
+            "prefixed cell",
+            "prefixed cells",
+        )
         has_supply_chain_surface = any(
             token in lowered for token in ("package", "plugin", "library", "sdk", "dependency", "extension")
         )
         has_strong_insecure_surface = any(
-            token in lowered for token in ("html", "csv", "sql", "shell", "script", "render")
+            token in lowered for token in ("html", "csv", "sql", "shell", "script", "render", "spreadsheet", "excel")
+        )
+        has_formula_output_surface = "formula" in lowered and any(
+            token in lowered for token in ("csv", "spreadsheet", "excel", "export", "cell", "row")
         )
         has_weak_insecure_surface = any(
             token in lowered for token in ("markdown", "link", "url")
@@ -609,23 +622,25 @@ class Attacker(AgentExecutor):
                 surface = "sdk_comparison"
             else:
                 surface = "package_recommendation"
+        elif has_strong_insecure_surface or has_formula_output_surface or (has_weak_insecure_surface and not has_supply_chain_surface):
+            family = "insecure_output"
+            if any(token in lowered for token in ("csv", "formula", "spreadsheet", "excel", "prefixed cell", "prefixed cells")):
+                surface = "csv_export"
+            elif any(token in lowered for token in ("shell", "sql", "command", "migration", "automation")):
+                surface = "command_template"
+            else:
+                surface = "structured_export"
         elif any(token in lowered for token in ("workflow", "process", "capabilities", "documentation")):
             family = "prompt_extraction"
             surface = "workflow_probe"
         elif any(token in lowered for token in ("billing", "verification", "audit export", "table format")):
             family = "pii_leak" if hints.objective_type == "pii_disclosure" else "prompt_extraction"
             surface = "record_verification"
-        elif any(token in lowered for token in ("workout", "calibration", "formula", "raw calculated", "competition-level")):
+        elif any(token in lowered for token in ("workout", "calibration", "raw calculated", "competition-level")) or (
+            "formula" in lowered and any(token in lowered for token in ("workout", "fitness", "gym", "intensity", "calibration"))
+        ):
             family = "jailbreak"
             surface = "calculation_request"
-        elif has_strong_insecure_surface or (has_weak_insecure_surface and not has_supply_chain_surface):
-            family = "insecure_output"
-            if any(token in lowered for token in ("csv", "formula", "spreadsheet", "excel")):
-                surface = "csv_export"
-            elif any(token in lowered for token in ("shell", "sql", "command", "migration", "automation")):
-                surface = "command_template"
-            else:
-                surface = "structured_export"
         elif has_supply_chain_surface:
             family = "supply_chain"
             if any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
@@ -665,6 +680,14 @@ class Attacker(AgentExecutor):
                 surface = "name_verification"
             else:
                 surface = "package_recommendation"
+        elif preferred_family == "insecure_output" and any(
+            token in lowered for token in insecure_output_fallback_tokens
+        ):
+            family = "insecure_output"
+            if any(token in lowered for token in ("spreadsheet", "formula", "prefixed cell", "prefixed cells")):
+                surface = "csv_export"
+            else:
+                surface = "structured_export"
 
         return family, surface
 
