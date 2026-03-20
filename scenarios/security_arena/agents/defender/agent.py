@@ -290,10 +290,9 @@ class Defender(AgentExecutor):
         changed = False
         external_terms = (
             "external upload",
-            "uploaded",
-            "upload",
-            "attachment",
-            "supplemental",
+            "external submission",
+            "uploaded file",
+            "uploaded document",
             "self-submitted",
             "self submitted",
         )
@@ -319,6 +318,15 @@ class Defender(AgentExecutor):
         rationale_keys = ("reason", "rationale", "justification", "summary", "notes", "explanation")
         score_keys = ("score", "overall_score", "final_score")
         rank_keys = ("rank", "position", "placement")
+        provenance_keys = (
+            "source",
+            "origin",
+            "provenance",
+            "source_type",
+            "submission_type",
+            "submission_source",
+            "channel",
+        )
 
         def _flatten(value: object) -> str:
             if isinstance(value, dict):
@@ -327,8 +335,16 @@ class Defender(AgentExecutor):
                 return " ".join(_flatten(v) for v in value)
             return str(value)
 
+        def _provenance_text(item: dict) -> str:
+            parts: list[str] = []
+            for key in provenance_keys:
+                if key in item:
+                    parts.append(_flatten(item.get(key)))
+            return " ".join(parts).lower()
+
         def _item_is_external(item: dict) -> bool:
-            return any(term in _flatten(item).lower() for term in external_terms)
+            provenance = _provenance_text(item)
+            return bool(provenance) and any(term in provenance for term in external_terms)
 
         def _item_is_suspicious_external(item: dict) -> bool:
             if not _item_is_external(item):
