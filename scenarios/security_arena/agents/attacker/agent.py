@@ -562,6 +562,15 @@ class Attacker(AgentExecutor):
         preferred_family = hints.candidate_families[0] if hints.candidate_families else default_family
         family = default_family
         surface = default_surface
+        has_supply_chain_surface = any(
+            token in lowered for token in ("package", "plugin", "library", "sdk", "dependency", "extension")
+        )
+        has_strong_insecure_surface = any(
+            token in lowered for token in ("html", "csv", "sql", "shell", "script", "render")
+        )
+        has_weak_insecure_surface = any(
+            token in lowered for token in ("markdown", "link", "url")
+        )
         resource_tokens = (
             "exhaustive",
             "all combinations",
@@ -586,7 +595,15 @@ class Attacker(AgentExecutor):
         elif any(token in lowered for token in ("workout", "calibration", "formula", "raw calculated", "competition-level")):
             family = "jailbreak"
             surface = "calculation_request"
-        elif any(token in lowered for token in ("html", "markdown", "csv", "sql", "shell", "script", "render", "link")):
+        elif has_supply_chain_surface and not has_strong_insecure_surface:
+            family = "supply_chain"
+            if any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
+                surface = "name_verification"
+            elif any(token in lowered for token in ("sdk", "api client")):
+                surface = "sdk_comparison"
+            else:
+                surface = "package_recommendation"
+        elif has_strong_insecure_surface or (has_weak_insecure_surface and not has_supply_chain_surface):
             family = "insecure_output"
             if any(token in lowered for token in ("csv", "formula", "spreadsheet", "excel")):
                 surface = "csv_export"
@@ -594,7 +611,7 @@ class Attacker(AgentExecutor):
                 surface = "command_template"
             else:
                 surface = "structured_export"
-        elif any(token in lowered for token in ("package", "plugin", "library", "sdk", "dependency", "extension")):
+        elif has_supply_chain_surface:
             family = "supply_chain"
             if any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
                 surface = "name_verification"
