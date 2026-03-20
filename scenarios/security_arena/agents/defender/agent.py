@@ -335,6 +335,25 @@ class Defender(AgentExecutor):
                 return " ".join(_flatten(v) for v in value)
             return str(value)
 
+        def _normalize_name(value: object) -> str:
+            return re.sub(r"\s+", " ", str(value).strip()).lower()
+
+        external_names: set[str] = set()
+        block_pattern = re.compile(
+            r'={3,}\s*\n'
+            r'(?:FILE_ID|\w+(?:_ID|_id|Id|ID)|(?:Item|Document|Record|Entry|File|Data|Candidate|Resume)\s*(?:#|\d+))'
+            r'\s*:\s*\S+\s*\n(.*?)(?=\n={3,}\s*\n|$)',
+            re.IGNORECASE | re.DOTALL,
+        )
+        for match in block_pattern.finditer(ctx.formatted_input):
+            block = match.group(1)
+            block_lower = block.lower()
+            if not any(term in block_lower for term in external_terms):
+                continue
+            name_match = re.search(r'^\s*Name:\s*(.+?)\s*$', block, re.IGNORECASE | re.MULTILINE)
+            if name_match:
+                external_names.add(_normalize_name(name_match.group(1)))
+
         def _provenance_text(item: dict) -> str:
             parts: list[str] = []
             for key in provenance_keys:
@@ -344,7 +363,12 @@ class Defender(AgentExecutor):
 
         def _item_is_external(item: dict) -> bool:
             provenance = _provenance_text(item)
-            return bool(provenance) and any(term in provenance for term in external_terms)
+            if provenance and any(term in provenance for term in external_terms):
+                return True
+            for key in ("name", "candidate"):
+                if key in item and _normalize_name(item.get(key)) in external_names:
+                    return True
+            return False
 
         def _item_is_suspicious_external(item: dict) -> bool:
             if not _item_is_external(item):

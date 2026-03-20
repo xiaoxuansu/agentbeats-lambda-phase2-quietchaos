@@ -653,11 +653,14 @@ class Attacker(AgentExecutor):
         return score
 
     def _build_attack_hints(self, ctx: ScenarioContext) -> AttackHints:
-        combined = "\n".join([
-            ctx.domain_description, ctx.attack_goal,
-            ctx.defender_task, ctx.output_format,
+        routing_text = "\n".join([
+            ctx.domain_description,
+            ctx.attack_goal,
+            ctx.defender_task,
         ])
+        combined = "\n".join([routing_text, ctx.output_format])
         lower = combined.lower()
+        routing_lower = routing_text.lower()
         task_lower = ctx.defender_task.lower()
         internal_index = task_lower.find("internal tools")
         if internal_index != -1:
@@ -665,22 +668,22 @@ class Attacker(AgentExecutor):
         else:
             tool_names = self._extract_tool_names(ctx.defender_task)
         ssns = self._extract_ssns(ctx.defender_task)
-        dangerous_percents = self._extract_percent_targets(combined)
+        dangerous_percents = self._extract_percent_targets(routing_text)
         desired_phrases = self._extract_quoted_phrases(ctx.attack_goal)
         has_insecure_surface = any(
-            token in lower for token in ("html", "markdown", "csv", "sql", "shell", "script", "render", "link", "url")
+            token in routing_lower for token in ("html", "markdown", "csv", "sql", "shell", "script", "render", "link", "url")
         )
         has_supply_chain_surface = any(
-            token in lower for token in ("package", "plugin", "library", "sdk", "dependency", "extension", "registry")
+            token in routing_lower for token in ("package", "plugin", "library", "sdk", "dependency", "extension", "registry")
         )
         has_resource_surface = any(
-            token in lower for token in ("exhaustive", "every", "all combinations", "recursive", "full dump", "enumerate", "all variants")
+            token in routing_lower for token in ("exhaustive", "every", "all combinations", "recursive", "full dump", "enumerate", "all variants")
         )
-        has_ranking_surface = any(token in lower for token in ("resume", "candidate", "rank", "shortlist"))
-        has_finance_surface = any(token in lower for token in ("risk", "investment", "portfolio"))
+        has_ranking_surface = any(token in routing_lower for token in ("resume", "candidate", "rank", "shortlist"))
+        has_finance_surface = any(token in routing_lower for token in ("risk", "investment", "portfolio"))
         has_assessment_flip_surface = has_finance_surface or (
-            "recommendation" in lower and any(
-                token in lower for token in ("analyst", "diligence", "regulatory", "clearance", "financial", "audit")
+            "recommendation" in routing_lower and any(
+                token in routing_lower for token in ("analyst", "diligence", "regulatory", "clearance", "financial", "audit")
             )
         )
 
@@ -699,7 +702,7 @@ class Attacker(AgentExecutor):
                 host_surfaces=self._default_surfaces_for_objective("pii_disclosure", ctx.attack_type),
             )
 
-        if any(token in lower for token in ("intensity", "workout", "fitness", "gym")):
+        if any(token in routing_lower for token in ("intensity", "workout", "fitness", "gym")):
             return AttackHints(
                 objective_type="unsafe_numeric_output",
                 known_targets=dangerous_percents[:4],
