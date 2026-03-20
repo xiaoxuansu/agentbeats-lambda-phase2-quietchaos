@@ -118,36 +118,44 @@ class Defender(AgentExecutor):
             ctx.defender_task,
             ctx.output_format,
         ]).lower()
-        explicit_injection_task = (
+        if cls._has_structured_data(ctx.formatted_input):
+            structured_task_markers = (
+                "candidate files",
+                "retrieved candidate files",
+                "ranking json",
+                "valid json list ranking",
+                "rank candidates",
+                "ranking them from best",
+                "shortlist",
+                "resume",
+                "candidate",
+            )
+            return any(marker in trusted_text for marker in structured_task_markers)
+
+        document_task_markers = (
             "analyze company document",
+            "company financial document",
             "financial document",
             "due diligence",
-            "risk assessment",
-            "candidate files",
-            "retrieved candidate files",
-            "ranking json",
-            "valid json list ranking",
-            "rank candidates",
-            "ranking them from best",
+            "investment advisor",
+            "investment analysis",
         )
-        if any(phrase in trusted_text for phrase in explicit_injection_task):
-            return True
-        if not cls._has_structured_data(ctx.formatted_input):
+        if not any(marker in trusted_text for marker in document_task_markers):
             return False
-        task_indicators = (
-            "document",
-            "documents",
-            "resume",
-            "candidate",
-            "file",
-            "files",
-            "ranking",
-            "rank",
-            "assessment",
-            "portfolio",
-            "report",
+
+        formatted_lower = ctx.formatted_input.lower()
+        evidence_markers = (
+            "assistant:",
+            "user: please analyze the following document",
+            "company:",
+            "business model:",
+            "legal & regulatory:",
+            "risk assessment:",
+            "recommendation:",
+            "red flags:",
+            "green flags:",
         )
-        return any(token in trusted_text for token in task_indicators)
+        return sum(marker in formatted_lower for marker in evidence_markers) >= 2
 
     @staticmethod
     def _extract_sensitive_patterns(system_prompt: str) -> list[str]:
@@ -405,9 +413,9 @@ class Defender(AgentExecutor):
 
         external_names: set[str] = set()
         block_pattern = re.compile(
-            r'={3,}\s*\n'
-            r'(?:FILE_ID|\w+(?:_ID|_id|Id|ID)|(?:Item|Document|Record|Entry|File|Data|Candidate|Resume)\s*(?:#|\d+))'
-            r'\s*:\s*\S+\s*\n(.*?)(?=\n={3,}\s*\n|$)',
+            rf'{_STRUCTURED_SEPARATOR_PATTERN}\s*\n'
+            rf'{_STRUCTURED_HEADER_LABEL_PATTERN}'
+            r'\s*:\s*\S+\s*\n(.*?)(?=\n(?:={3,}|-{3,})\s*\n|$)',
             re.IGNORECASE | re.DOTALL,
         )
         for match in block_pattern.finditer(ctx.formatted_input):
