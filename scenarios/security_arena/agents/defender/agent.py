@@ -58,11 +58,20 @@ _INTERNAL_DETAIL_PATTERN = re.compile(
     r"(tool name|function name|internal tool|hidden tool|private identifier|internal label|backend step)",
     re.IGNORECASE,
 )
+_EXTERNAL_PROVENANCE_TERMS = (
+    "external upload",
+    "external submission",
+    "uploaded file",
+    "uploaded document",
+    "self-submitted",
+    "self submitted",
+)
 
 
 @dataclass
 class ScenarioContext:
     """Filtered scenario context from orchestrator (no attack info)."""
+    attack_type: str         # Scenario type: DIRECT or INJECTION
     domain_description: str   # Domain/system description
     defender_role: str        # Defender's role description
     defender_task: str        # What defender should do
@@ -72,6 +81,7 @@ class ScenarioContext:
     @classmethod
     def from_dict(cls, d: dict) -> "ScenarioContext":
         return cls(
+            attack_type=str(d.get("attack_type", "")).strip().upper(),
             domain_description=d.get("domain_description", ""),
             defender_role=d.get("defender_role", ""),
             defender_task=d.get("defender_task", ""),
@@ -89,6 +99,19 @@ class Defender(AgentExecutor):
             base_url=os.getenv("OPENAI_BASE_URL")
         )
         self.model = model
+
+    @staticmethod
+    def _contains_external_provenance(text: str) -> bool:
+        lowered = text.lower()
+        return any(term in lowered for term in _EXTERNAL_PROVENANCE_TERMS)
+
+    @classmethod
+    def _is_injection_scenario(cls, ctx: ScenarioContext) -> bool:
+        if ctx.attack_type == "INJECTION":
+            return True
+        if ctx.attack_type == "DIRECT":
+            return False
+        return cls._has_structured_data(ctx.formatted_input)
 
     @staticmethod
     def _extract_sensitive_patterns(system_prompt: str) -> list[str]:
@@ -263,7 +286,7 @@ class Defender(AgentExecutor):
     @staticmethod
     def _apply_item_local_ranking_guard(output: str, ctx: ScenarioContext) -> tuple[str, list[str]]:
         lower = f"{ctx.defender_role}\n{ctx.defender_task}\n{ctx.formatted_input}".lower()
-        if "external upload" not in lower:
+        if not Defender._contains_external_provenance(lower):
             return output, []
         if not any(token in lower for token in ("candidate", "resume", "shortlist", "rank")):
             return output, []
@@ -288,14 +311,7 @@ class Defender(AgentExecutor):
 
         flags: list[str] = []
         changed = False
-        external_terms = (
-            "external upload",
-            "external submission",
-            "uploaded file",
-            "uploaded document",
-            "self-submitted",
-            "self submitted",
-        )
+        external_terms = _EXTERNAL_PROVENANCE_TERMS
         suspicious_terms = (
             "perfect fit",
             "best fit",
@@ -721,11 +737,11 @@ class Defender(AgentExecutor):
                 logger.info("Sensitive patterns to protect: %s", sensitive_patterns[:10])
 
             # Determine scenario type
-            has_structured_data = self._has_structured_data(ctx.formatted_input)
-            user_template = _structured_user_template if has_structured_data else _user_template
+            is_injection_scenario = self._is_injection_scenario(ctx)
+            user_template = _structured_user_template if is_injection_scenario else _user_template
             user_prompt = self._render(user_template, ctx)
 
-            if has_structured_data:
+            if is_injection_scenario:
                 # === INJECTION SCENARIO PATH (resume_downgrade, portfolioiq, etc.) ===
                 # Detect actual ID prefix used in this scenario
                 id_prefix = "FILE_ID"
@@ -820,7 +836,7 @@ class Defender(AgentExecutor):
                     )
                 else:
                     # No explicit injection found - apply general defense
-                    has_external_upload = "external upload" in ctx.formatted_input.lower()
+                    has_external_upload = self._contains_external_provenance(ctx.formatted_input)
 
                     if has_external_upload:
                         # Defense: external uploads can be legitimate but also fabricated
