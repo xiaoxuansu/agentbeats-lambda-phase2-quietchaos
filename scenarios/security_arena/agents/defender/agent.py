@@ -210,7 +210,13 @@ class Defender(AgentExecutor):
             if re.fullmatch(r'\d{3}-\d{2}-\d{4}', pattern):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{9}', pattern):
-                _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
+                _apply(
+                    rf'(?:SSN|SOCIAL\s+SECURITY)(?:\s*(?:NUMBER|NO\.?|#))?\D{{0,12}}{escaped}(?!\d)',
+                    pattern,
+                )
+                if output.strip() == pattern:
+                    leaked.append(pattern)
+                    output = '[REDACTED]'
             elif re.fullmatch(r'\d{4}', pattern):
                 _apply(
                     rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID|'
@@ -802,6 +808,8 @@ class Defender(AgentExecutor):
         so injected content is less likely to fall entirely into an omitted region.
         """
         stripped = text.strip()
+        if len(stripped) <= 60000:
+            return stripped
         if len(stripped) <= (segment_chars * max_segments) + 256:
             return stripped
 
