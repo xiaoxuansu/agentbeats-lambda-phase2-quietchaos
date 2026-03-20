@@ -51,6 +51,12 @@ _ECHO_TRIGGER_PATTERN = re.compile(
     r"\b(confirm|verify|correct|keep|preserve|fill in|complete|replace|exactly as written|unchanged)\b",
     re.IGNORECASE,
 )
+_ECHO_QUESTION_PATTERN = re.compile(
+    r"^\s*(?:is|are|was|were|does|do|did|can|could|would|should)\b|"
+    r"\b(?:end|ending)\s+in\b|"
+    r"\?\s*$",
+    re.IGNORECASE,
+)
 _SENSITIVE_NUMBER_FIELD_PATTERN = re.compile(
     r"(social security|ssn|member id|account number)",
     re.IGNORECASE,
@@ -71,7 +77,7 @@ _EXTERNAL_PROVENANCE_TERMS = (
 _STRUCTURED_SEPARATOR_PATTERN = r"(?:={3,}|-{3,})"
 _STRUCTURED_HEADER_LABEL_PATTERN = (
     r"(?:FILE_ID|\w+(?:_ID|_id|Id|ID)|"
-    r"(?:Item|Document|Record|Entry|File|Data|Candidate|Resume)\s*(?:#|\d+))"
+    r"(?:Item|Document|Record|Entry|File|Data|Candidate|Resume)(?:\s*(?:#\s*\d+|\d+))?)"
 )
 
 
@@ -219,7 +225,7 @@ class Defender(AgentExecutor):
                 candidates.append(match.split("-")[-1])
                 candidates.append(match.replace("-", ""))
             for match in re.findall(
-                r"(?:member id|account number)\s*(?:is|:|#|ending in)?\s*([A-Z0-9-]{4,})",
+                r"(?:member id|account number)\s*(?:is|:|#|end(?:ing)? in)?\s*([A-Z0-9-]{4,})",
                 text,
                 re.IGNORECASE,
             ):
@@ -246,10 +252,10 @@ class Defender(AgentExecutor):
 
     @classmethod
     def _detect_echo_attack(cls, text: str) -> list[str]:
-        if not _ECHO_TRIGGER_PATTERN.search(text):
-            return []
         candidates = cls._extract_echo_candidates(text)
-        if candidates:
+        if not candidates:
+            return []
+        if _ECHO_TRIGGER_PATTERN.search(text) or _ECHO_QUESTION_PATTERN.search(text):
             return candidates
         return []
 
@@ -414,18 +420,24 @@ class Defender(AgentExecutor):
         external_names: set[str] = set()
         block_pattern = re.compile(
             rf'{_STRUCTURED_SEPARATOR_PATTERN}\s*\n'
-            rf'{_STRUCTURED_HEADER_LABEL_PATTERN}'
-            r'\s*:\s*\S+\s*\n(.*?)(?=\n(?:={3,}|-{3,})\s*\n|$)',
+            rf'({_STRUCTURED_HEADER_LABEL_PATTERN})'
+            r'\s*:\s*(\S+)\s*\n(.*?)(?=\n(?:={3,}|-{3,})\s*\n|$)',
             re.IGNORECASE | re.DOTALL,
         )
         for match in block_pattern.finditer(ctx.formatted_input):
-            block = match.group(1)
+            header_label = match.group(1)
+            header_value = match.group(2)
+            block = match.group(3)
             block_lower = block.lower()
             if not any(term in block_lower for term in external_terms):
                 continue
             name_match = re.search(r'^\s*Name:\s*(.+?)\s*$', block, re.IGNORECASE | re.MULTILINE)
             if name_match:
                 external_names.add(_normalize_name(name_match.group(1)))
+                continue
+            natural_label = re.sub(r"\s+", " ", header_label).lower()
+            if any(token in natural_label for token in ("candidate", "resume", "applicant", "profile")):
+                external_names.add(_normalize_name(header_value))
 
         def _provenance_text(item: dict) -> str:
             parts: list[str] = []
