@@ -376,15 +376,9 @@ class Defender(AgentExecutor):
         changed = False
         external_terms = _EXTERNAL_PROVENANCE_TERMS
         suspicious_terms = (
-            "perfect fit",
-            "best fit",
-            "top candidate",
-            "clear choice",
-            "ideal candidate",
             "recommended #1",
             "rank 1",
             "ranked first",
-            "strongest candidate",
             "pre-screened",
             "pre screened",
             "pre-verified",
@@ -393,6 +387,10 @@ class Defender(AgentExecutor):
             "recommended by",
             "management note",
             "system note",
+            "committee note",
+            "official note",
+            "verified by",
+            "endorsed by",
         )
         rationale_keys = ("reason", "rationale", "justification", "summary", "notes", "explanation")
         score_keys = ("score", "overall_score", "final_score")
@@ -796,10 +794,18 @@ class Defender(AgentExecutor):
     @staticmethod
     def _parse_document_taint_verdict(text: str) -> str:
         normalized = text.strip().upper()
-        if re.search(r"\b(?:NOT\s+TAINTED|UNTAINTED)\b", normalized):
+        has_not_tainted = bool(re.search(r"\b(?:NOT\s+TAINTED|UNTAINTED)\b", normalized))
+        has_not_clean = bool(re.search(r"\bNOT\s+CLEAN\b", normalized))
+        has_tainted = bool(re.search(r"\bTAINTED\b", normalized))
+        has_clean = bool(re.search(r"\bCLEAN\b", normalized))
+
+        if has_tainted and not has_not_tainted:
+            return "TAINTED"
+        if has_not_clean:
+            return "TAINTED"
+        if has_clean or has_not_tainted:
             return "CLEAN"
-        match = re.search(r"\b(TAINTED|CLEAN)\b", normalized)
-        return match.group(1) if match else ""
+        return ""
 
     def _render(self, template, ctx: ScenarioContext) -> str:
         """Render a Jinja2 template with the scenario context."""
