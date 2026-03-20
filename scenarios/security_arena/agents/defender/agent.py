@@ -188,7 +188,6 @@ class Defender(AgentExecutor):
         # Extract SSN patterns (always sensitive regardless of section)
         for match in re.findall(r'\b(\d{3}-\d{2}-\d{4})\b', system_prompt):
             patterns.append(match)
-            patterns.append(match.split('-')[-1])  # last 4 digits
             patterns.append(match.replace('-', ''))  # no dashes
 
         return list(set(patterns))
@@ -198,18 +197,39 @@ class Defender(AgentExecutor):
         """Redact sensitive patterns found in output."""
         if not sensitive_patterns:
             return output
-        leaked = []
-        output_lower = output.lower()
+        leaked: list[str] = []
+
+        def _apply(regex: str, label: str) -> None:
+            nonlocal output
+            if re.search(regex, output, re.IGNORECASE):
+                leaked.append(label)
+                output = re.sub(regex, '[REDACTED]', output, flags=re.IGNORECASE)
+
         for pattern in sensitive_patterns:
-            if pattern.lower() in output_lower:
-                leaked.append(pattern)
-        if leaked:
-            logger.warning("Output leak detected: %s - sanitizing", leaked)
-            for pattern in leaked:
-                output = re.sub(
-                    re.escape(pattern), '[REDACTED]',
-                    output, flags=re.IGNORECASE
+            escaped = re.escape(pattern)
+            if re.fullmatch(r'\d{3}-\d{2}-\d{4}', pattern):
+                _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
+            elif re.fullmatch(r'\d{9}', pattern):
+                _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
+            elif re.fullmatch(r'\d{4}', pattern):
+                _apply(
+                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID|'
+                    rf'LAST\s*4|ENDING\s*IN|ENDS\s*IN|XXX\s*-\s*XX\s*-)\D{{0,12}}{escaped}(?!\d)',
+                    pattern,
                 )
+                if output.strip() == pattern:
+                    leaked.append(pattern)
+                    output = '[REDACTED]'
+            elif re.fullmatch(r'[A-Z][A-Z0-9_]{2,}', pattern):
+                _apply(rf'(?<![A-Z0-9_]){escaped}(?![A-Z0-9_])', pattern)
+            elif re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)+', pattern):
+                _apply(rf'(?<![a-z0-9_]){escaped}(?![a-z0-9_])', pattern)
+            else:
+                _apply(escaped, pattern)
+
+        if leaked:
+            leaked = list(dict.fromkeys(leaked))
+            logger.warning("Output leak detected: %s - sanitizing", leaked)
         return output
 
     @staticmethod
@@ -447,8 +467,11 @@ class Defender(AgentExecutor):
         def _item_is_suspicious_external(item: dict) -> bool:
             if not _item_is_external(item):
                 return False
-            flattened = _flatten(item).lower()
-            return any(re.search(pattern, flattened, re.IGNORECASE) for pattern in suspicious_patterns)
+            rationale_blob = " ".join(
+                str(item.get(key, "")) for key in rationale_keys if isinstance(item.get(key), str)
+            ).lower()
+            candidate_blob = " ".join(part for part in (rationale_blob, _provenance_text(item)) if part).strip()
+            return any(re.search(pattern, candidate_blob, re.IGNORECASE) for pattern in suspicious_patterns)
 
         def _parse_score(value: object) -> float | None:
             if isinstance(value, (int, float)):
@@ -769,8 +792,9 @@ class Defender(AgentExecutor):
     @staticmethod
     def _document_analysis_excerpt(
         text: str,
-        segment_chars: int = 1400,
-        segment_count: int = 5,
+        segment_chars: int = 1100,
+        max_segments: int = 12,
+        target_gap: int = 1800,
     ) -> str:
         """
         Build an excerpt for document-security analysis.
@@ -778,9 +802,13 @@ class Defender(AgentExecutor):
         so injected content is less likely to fall entirely into an omitted region.
         """
         stripped = text.strip()
-        if len(stripped) <= (segment_chars * segment_count) + 256:
+        if len(stripped) <= (segment_chars * max_segments) + 256:
             return stripped
 
+        segment_count = min(
+            max_segments,
+            max(5, ((max(len(stripped) - segment_chars, 0) + max(target_gap, 1) - 1) // max(target_gap, 1)) + 1),
+        )
         max_start = max(len(stripped) - segment_chars, 0)
         anchors: list[int] = []
         if segment_count <= 1 or max_start == 0:
