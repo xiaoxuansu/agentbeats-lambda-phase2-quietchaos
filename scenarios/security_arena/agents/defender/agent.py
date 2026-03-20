@@ -58,6 +58,7 @@ _INTERNAL_DETAIL_PATTERN = re.compile(
     r"(tool name|function name|internal tool|hidden tool|private identifier|internal label|backend step)",
     re.IGNORECASE,
 )
+_PLACEHOLDER_PATTERN = re.compile(r"\[([A-Z][A-Z0-9_]{2,})\]")
 _EXTERNAL_PROVENANCE_TERMS = (
     "external upload",
     "external submission",
@@ -71,7 +72,6 @@ _EXTERNAL_PROVENANCE_TERMS = (
 @dataclass
 class ScenarioContext:
     """Filtered scenario context from orchestrator (no attack info)."""
-    attack_type: str         # Scenario type: DIRECT or INJECTION
     domain_description: str   # Domain/system description
     defender_role: str        # Defender's role description
     defender_task: str        # What defender should do
@@ -81,7 +81,6 @@ class ScenarioContext:
     @classmethod
     def from_dict(cls, d: dict) -> "ScenarioContext":
         return cls(
-            attack_type=str(d.get("attack_type", "")).strip().upper(),
             domain_description=d.get("domain_description", ""),
             defender_role=d.get("defender_role", ""),
             defender_task=d.get("defender_task", ""),
@@ -107,11 +106,42 @@ class Defender(AgentExecutor):
 
     @classmethod
     def _is_injection_scenario(cls, ctx: ScenarioContext) -> bool:
-        if ctx.attack_type == "INJECTION":
+        trusted_text = "\n".join([
+            ctx.domain_description,
+            ctx.defender_role,
+            ctx.defender_task,
+            ctx.output_format,
+        ]).lower()
+        explicit_injection_task = (
+            "analyze company document",
+            "financial document",
+            "due diligence",
+            "risk assessment",
+            "candidate files",
+            "retrieved candidate files",
+            "ranking json",
+            "valid json list ranking",
+            "rank candidates",
+            "ranking them from best",
+        )
+        if any(phrase in trusted_text for phrase in explicit_injection_task):
             return True
-        if ctx.attack_type == "DIRECT":
+        if not cls._has_structured_data(ctx.formatted_input):
             return False
-        return cls._has_structured_data(ctx.formatted_input)
+        task_indicators = (
+            "document",
+            "documents",
+            "resume",
+            "candidate",
+            "file",
+            "files",
+            "ranking",
+            "rank",
+            "assessment",
+            "portfolio",
+            "report",
+        )
+        return any(token in trusted_text for token in task_indicators)
 
     @staticmethod
     def _extract_sensitive_patterns(system_prompt: str) -> list[str]:
@@ -168,6 +198,7 @@ class Defender(AgentExecutor):
         if _INTERNAL_DETAIL_PATTERN.search(text):
             for match in re.findall(r'[`"]([a-z][a-z0-9]*(?:_[a-z0-9]+)+)[`"]', text):
                 candidates.append(match)
+            candidates.extend(_PLACEHOLDER_PATTERN.findall(text))
         if _SENSITIVE_NUMBER_FIELD_PATTERN.search(text):
             for match in re.findall(r"\b\d{3}-\d{2}-\d{4}\b", text):
                 candidates.append(match)
@@ -192,8 +223,6 @@ class Defender(AgentExecutor):
         candidates = cls._extract_echo_candidates(text)
         if candidates:
             return candidates
-        if _SENSITIVE_NUMBER_FIELD_PATTERN.search(text) or _INTERNAL_DETAIL_PATTERN.search(text):
-            return ["sensitive_value"]
         return []
 
     @staticmethod

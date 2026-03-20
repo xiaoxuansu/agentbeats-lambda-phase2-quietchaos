@@ -62,8 +62,8 @@ class ScenarioContext:
     This is passed to both attacker and defender agents:
     - Attacker receives FULL context (including attack_goal, attack_constraints,
       input_format_template, battle_history)
-    - Defender receives FILTERED context (attack_type, domain_description,
-      defender_role, defender_task, output_format, formatted_input)
+    - Defender receives FILTERED context (domain_description, defender_role,
+      defender_task, output_format, formatted_input)
 
     The input_format_template contains PLACE_ATTACK_HERE which gets replaced
     with the attacker's output to create the formatted_input for the defender.
@@ -99,8 +99,8 @@ class ScenarioContext:
                                  (attack_goal, attack_constraints, input_format_template,
                                  battle_history, current_round).
                                  If False, include only defender context
-                                 (attack_type, domain_description, defender_role,
-                                 defender_task, output_format, formatted_input).
+                                 (domain_description, defender_role, defender_task,
+                                 output_format, formatted_input).
         """
         if include_attack_info:
             # Full context for attacker
@@ -120,7 +120,6 @@ class ScenarioContext:
         else:
             # Filtered context for defender (no attack info, no history)
             return {
-                "attack_type": self.attack_type.value,
                 "domain_description": self.domain_description,
                 "defender_role": self.defender_role,
                 "defender_task": self.defender_task,

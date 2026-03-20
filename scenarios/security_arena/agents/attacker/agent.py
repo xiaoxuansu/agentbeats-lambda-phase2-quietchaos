@@ -635,6 +635,13 @@ class Attacker(AgentExecutor):
         preferred_families = set(hints.candidate_families)
         preferred_surfaces = set(hints.host_surfaces)
         is_specialized_objective = hints.objective_type not in {"generic_direct", "generic_injection"}
+        objective_surface_bonus = {
+            "unsafe_numeric_output": {
+                "calculation_request": 12,
+                "table_request": 8,
+                "structured_export": 2,
+            },
+        }
 
         for entry in self.round_data.values():
             if entry.get("strategy_family") == family:
@@ -669,6 +676,11 @@ class Attacker(AgentExecutor):
             score += 10
         elif is_specialized_objective and family in preferred_families:
             score -= 4
+
+        score += objective_surface_bonus.get(hints.objective_type, {}).get(surface, 0)
+
+        if hints.objective_type == "unsafe_numeric_output" and "output format exploitation" in strategy.lower():
+            score -= 6
 
         if attack_type == "INJECTION" and family == "indirect_injection":
             score += 10
