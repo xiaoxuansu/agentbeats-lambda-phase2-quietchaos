@@ -9,6 +9,7 @@ and processes formatted input according to the scenario.
 import argparse
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -189,6 +190,7 @@ class Defender(AgentExecutor):
         for match in re.findall(r'\b(\d{3}-\d{2}-\d{4})\b', system_prompt):
             patterns.append(match)
             patterns.append(match.replace('-', ''))  # no dashes
+            patterns.append(match.split('-')[-1])  # last 4 digits
 
         return list(set(patterns))
 
@@ -198,12 +200,6 @@ class Defender(AgentExecutor):
         if not sensitive_patterns:
             return output
         leaked: list[str] = []
-        benign_reference_context = re.compile(
-            r'(?:appointment\s+reference|reference\s+number|reference\s+id|'
-            r'order\s+number|tracking\s+number|ticket\s+number|invoice\s+number|'
-            r'confirmation\s+number)\b',
-            re.IGNORECASE,
-        )
 
         def _apply(regex: str, label: str) -> None:
             nonlocal output
@@ -216,20 +212,11 @@ class Defender(AgentExecutor):
             if re.fullmatch(r'\d{3}-\d{2}-\d{4}', pattern):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{9}', pattern):
-                nine_digit_pattern = re.compile(rf'(?<!\d){escaped}(?!\d)', re.IGNORECASE)
-
-                def _replace_nine_digit(match: re.Match) -> str:
-                    prefix = output[max(0, match.start() - 48):match.start()].lower()
-                    if benign_reference_context.search(prefix):
-                        return match.group(0)
-                    leaked.append(pattern)
-                    return '[REDACTED]'
-
-                output = nine_digit_pattern.sub(_replace_nine_digit, output)
+                _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{4}', pattern):
                 _apply(
                     rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID|'
-                    rf'LAST\s*4|ENDING\s*IN|ENDS\s*IN|XXX\s*-\s*XX\s*-)\D{{0,12}}{escaped}(?!\d)',
+                    rf'LAST\s*(?:4|FOUR)|ENDING\s*IN|ENDS\s*IN|XXX\s*-\s*XX\s*-)\D{{0,12}}{escaped}(?!\d)',
                     pattern,
                 )
                 if output.strip() == pattern:
@@ -810,16 +797,24 @@ class Defender(AgentExecutor):
         text: str,
         segment_chars: int = 12000,
         overlap_chars: int = 1200,
+        max_segments: int = 8,
     ) -> list[str]:
         """
         Split a document into contiguous overlapping segments for security analysis.
-        This avoids fixed sampling blind spots on long append-only documents.
+        This avoids fixed sampling blind spots on long append-only documents while
+        keeping the number of analysis calls bounded.
         """
         stripped = text.strip()
         if not stripped:
             return [""]
         if len(stripped) <= segment_chars:
             return [stripped]
+
+        if max_segments > 1:
+            required_segment_chars = math.ceil(
+                (len(stripped) + (max_segments - 1) * overlap_chars) / max_segments
+            )
+            segment_chars = max(segment_chars, required_segment_chars)
 
         stride = max(segment_chars - overlap_chars, 1)
         segments: list[str] = []
