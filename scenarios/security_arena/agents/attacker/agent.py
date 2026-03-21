@@ -634,6 +634,24 @@ class Attacker(AgentExecutor):
                 surface = "command_template"
             else:
                 surface = "structured_export"
+        elif any(token in lowered for token in ("policy update", "updated policy", "screening policy", "hiring policy", "system boundary")):
+            family = "indirect_injection"
+            surface = "policy_note"
+        elif any(token in lowered for token in ("output prefill", "pre-filled output", "prefill", "sample output", "desired ranking json")):
+            family = "indirect_injection"
+            surface = "output_prefill"
+        elif any(token in lowered for token in ("resume", "hr pre-screen", "pre-screening result", "credential injection", "fake verification", "verification markers")):
+            family = "indirect_injection"
+            surface = "role_fit_profile"
+        elif any(token in lowered for token in ("regulatory clearance", "official update", "clearance notification")):
+            family = "indirect_injection"
+            surface = "official_update"
+        elif any(token in lowered for token in ("updated due diligence", "revised report", "revised assessment", "updated assessment", "corrected assessment")):
+            family = "indirect_injection"
+            surface = "revised_report"
+        elif any(token in lowered for token in ("analyst addendum", "due diligence", "audit results")):
+            family = "indirect_injection"
+            surface = "analyst_addendum"
         elif any(token in lowered for token in ("workflow", "process", "capabilities", "documentation")):
             family = "prompt_extraction"
             surface = "workflow_probe"
@@ -669,9 +687,6 @@ class Attacker(AgentExecutor):
         elif any(token in lowered for token in ("resume", "hr pre-screen", "credential", "policy update")):
             family = "indirect_injection"
             surface = "role_fit_profile"
-        elif any(token in lowered for token in ("analyst addendum", "due diligence", "regulatory clearance", "audit results")):
-            family = "indirect_injection"
-            surface = "analyst_addendum"
         elif any(token in lowered for token in ("output format exploitation", "format-locked", "json", "csv", "table")):
             if preferred_family in {"insecure_output", "pii_leak"} or hints.objective_type == "unsafe_numeric_output":
                 family = preferred_family

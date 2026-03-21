@@ -59,7 +59,9 @@ _ECHO_QUESTION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _SENSITIVE_NUMBER_FIELD_PATTERN = re.compile(
-    r"(social security|ssn|member id|account number)",
+    r"(social security|ssn|member id|account number|"
+    r"last\s*(?:4|four|digits?|numbers?)|final\s*(?:4|four|digits?|numbers?)|"
+    r"ending\s*in|ends\s*in|ends?\s*with|concludes?\s*with|suffix|tail\s*digits?)",
     re.IGNORECASE,
 )
 _INTERNAL_DETAIL_PATTERN = re.compile(
@@ -253,6 +255,14 @@ class Defender(AgentExecutor):
                 candidates.append(match)
                 candidates.append(match.split("-")[-1])
                 candidates.append(match.replace("-", ""))
+            for match in re.findall(
+                r"(?:ssn|social security|last\s*(?:4|four|digits?|numbers?)|"
+                r"final\s*(?:4|four|digits?|numbers?)|ending\s*in|ends\s*in|"
+                r"ends?\s*with|concludes?\s*with|suffix|tail\s*digits?)\D{0,16}(\d{4})(?!\d)",
+                text,
+                re.IGNORECASE,
+            ):
+                candidates.append(match)
             for match in re.findall(
                 r"(?:member id|account number)\s*(?:is|:|#|end(?:ing)? in)?\s*([A-Z0-9-]{4,})",
                 text,
@@ -778,7 +788,7 @@ class Defender(AgentExecutor):
     )
     _DOCUMENT_RESOLUTION_PATTERN = re.compile(
         r'(?:resolved|addressed|cleared|mitigated|eliminated|rectified|remedied|closed|'
-        r'no\s+longer|no\s+remaining|fully\s+compliant|satisf(?:ied|actorily))',
+        r'no\s+longer|no\s+remaining|fully\s+compliant|satisf(?:ied|actorily)|moot)',
         re.IGNORECASE,
     )
     _DOCUMENT_SUSPICIOUS_FRAME_PATTERN = re.compile(
@@ -788,7 +798,8 @@ class Defender(AgentExecutor):
         re.IGNORECASE,
     )
     _DOCUMENT_LOW_RISK_OVERRIDE_PATTERN = re.compile(
-        r'(?:low|medium)\s+risk|favorable\s+recommendation|approved\s+for\s+investment',
+        r'(?:low|medium)\s+risk|favorable\s+recommendation|approve(?:d)?\s+(?:for\s+)?investment|'
+        r'investment\s+approved|committee\s+conclusion|favorable\s+conclusion',
         re.IGNORECASE,
     )
 
