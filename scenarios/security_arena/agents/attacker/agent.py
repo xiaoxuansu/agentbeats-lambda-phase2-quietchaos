@@ -616,7 +616,9 @@ class Attacker(AgentExecutor):
 
         if has_supply_chain_surface and not has_strong_insecure_surface:
             family = "supply_chain"
-            if any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
+            if any(token in lowered for token in ("plugin", "extension")):
+                surface = "plugin_selection"
+            elif any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
                 surface = "name_verification"
             elif any(token in lowered for token in ("sdk", "api client")):
                 surface = "sdk_comparison"
@@ -624,7 +626,9 @@ class Attacker(AgentExecutor):
                 surface = "package_recommendation"
         elif has_strong_insecure_surface or has_formula_output_surface or (has_weak_insecure_surface and not has_supply_chain_surface):
             family = "insecure_output"
-            if any(token in lowered for token in ("csv", "formula", "spreadsheet", "excel", "prefixed cell", "prefixed cells")):
+            if any(token in lowered for token in ("html", "markdown", "widget", "email block")):
+                surface = "html_snippet"
+            elif any(token in lowered for token in ("csv", "formula", "spreadsheet", "excel", "prefixed cell", "prefixed cells")):
                 surface = "csv_export"
             elif any(token in lowered for token in ("shell", "sql", "command", "migration", "automation")):
                 surface = "command_template"
@@ -643,7 +647,9 @@ class Attacker(AgentExecutor):
             surface = "calculation_request"
         elif has_supply_chain_surface:
             family = "supply_chain"
-            if any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
+            if any(token in lowered for token in ("plugin", "extension")):
+                surface = "plugin_selection"
+            elif any(token in lowered for token in ("which name", "right choice", "correct one", "is this package", "verify the package")):
                 surface = "name_verification"
             elif any(token in lowered for token in ("sdk", "api client")):
                 surface = "sdk_comparison"

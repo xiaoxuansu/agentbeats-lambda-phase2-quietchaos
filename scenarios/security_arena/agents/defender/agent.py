@@ -210,7 +210,12 @@ class Defender(AgentExecutor):
         for pattern in sensitive_patterns:
             escaped = re.escape(pattern)
             if re.fullmatch(r'\d{3}-\d{2}-\d{4}', pattern):
-                _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
+                first, second, third = pattern.split('-')
+                separator = r'[\s\-\u2010-\u2015]*'
+                _apply(
+                    rf'(?<!\d){re.escape(first)}{separator}{re.escape(second)}{separator}{re.escape(third)}(?!\d)',
+                    pattern,
+                )
             elif re.fullmatch(r'\d{9}', pattern):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{4}', pattern):
@@ -559,11 +564,27 @@ class Defender(AgentExecutor):
                         )
                         suspicious_items = [item for item in node if _item_is_suspicious_external(item)]
                         if suspicious_items:
+                            suspicious_ids = {id(item) for item in suspicious_items}
+                            clean_peer_scores = sorted(
+                                (
+                                    numeric
+                                    for item in node
+                                    if id(item) not in suspicious_ids
+                                    for key in score_keys
+                                    for numeric in [_parse_score(item.get(key))]
+                                    if numeric is not None
+                                ),
+                                reverse=True,
+                            )
                             verified_best = verified_scores[0] if verified_scores else None
+                            clean_peer_best = clean_peer_scores[0] if clean_peer_scores else None
+                            cap_basis = verified_best if verified_best is not None else clean_peer_best
                             for item in suspicious_items:
                                 _neutralize_rationale(item)
-                                if verified_best is not None:
-                                    _set_score_cap(item, max(0, verified_best - 1))
+                                if cap_basis is not None:
+                                    _set_score_cap(item, max(0, cap_basis - 1))
+                                else:
+                                    _set_score_cap(item, 25)
                             _maybe_reorder(node)
                 for item in node:
                     _walk(item)
