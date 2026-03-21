@@ -644,6 +644,32 @@ class Attacker(AgentExecutor):
         ):
             family = "pii_leak"
             surface = "record_verification"
+        elif attack_type == "INJECTION" and any(
+            token in lowered for token in (
+                "format-mimicking",
+                "errata",
+                "correction",
+                "fake system separator",
+                "re-framing instruction",
+                "disguised as metadata",
+            )
+        ):
+            family = preferred_family if preferred_family != default_family else default_family
+            surface = "format_mimicry"
+        elif attack_type == "INJECTION" and any(
+            token in lowered for token in (
+                "document addendum",
+                "supplementary data",
+                "supplementary",
+                "appendix",
+                "footnote",
+                "metadata",
+                "analyst note",
+                "document-native",
+            )
+        ):
+            family = preferred_family if preferred_family != default_family else default_family
+            surface = "metadata_appendix"
         elif has_supply_chain_surface and not has_strong_insecure_surface:
             family = "supply_chain"
             if any(token in lowered for token in ("plugin", "extension")):

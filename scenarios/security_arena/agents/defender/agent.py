@@ -221,6 +221,13 @@ class Defender(AgentExecutor):
             elif re.fullmatch(r'\d{9}', pattern):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{4}', pattern):
+                def _apply_value_context(prefix_regex: str) -> None:
+                    nonlocal output
+                    regex = rf'({prefix_regex}){escaped}(?=\s*(?:[)\]\"\'\u201d\u2019\.,;:!?]|$))'
+                    if re.search(regex, output, re.IGNORECASE):
+                        leaked.append(pattern)
+                        output = re.sub(regex, r'\1[REDACTED]', output, flags=re.IGNORECASE)
+
                 _apply(
                     rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID)'
                     rf'(?:\s*(?:[:#=]|-)\s*|\s+(?:IS|WAS|ARE|WERE|ENDING\s*IN|ENDS\s*IN|'
@@ -237,6 +244,16 @@ class Defender(AgentExecutor):
                     pattern,
                 )
                 _apply(rf'XXX\s*-\s*XX\s*-\D{{0,8}}{escaped}(?!\d)', pattern)
+                _apply_value_context(
+                    r'(?:^|[^\w])(?:ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH)\s*'
+                )
+                _apply_value_context(
+                    r'(?:^|[^\w])(?:THE\s+)?(?:NUMBER|VALUE|ID|IDENTIFIER)\s+'
+                    r'(?:ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH)\s*'
+                )
+                _apply_value_context(
+                    r'(?:^|[^\w])(?:LAST|FINAL)\s*(?:4|FOUR|DIGITS?|NUMBERS?)\s*(?::|=|IS|ARE)?\s*'
+                )
                 if output.strip() == pattern:
                     leaked.append(pattern)
                     output = '[REDACTED]'
