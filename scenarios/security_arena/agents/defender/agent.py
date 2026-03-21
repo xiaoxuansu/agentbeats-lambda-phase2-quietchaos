@@ -221,7 +221,9 @@ class Defender(AgentExecutor):
             elif re.fullmatch(r'\d{4}', pattern):
                 _apply(
                     rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID|'
-                    rf'LAST\s*(?:4|FOUR)|ENDING\s*IN|ENDS\s*IN|XXX\s*-\s*XX\s*-)\D{{0,12}}{escaped}(?!\d)',
+                    rf'LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?)|'
+                    rf'ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH|'
+                    rf'SUFFIX|TAIL\s*DIGITS?|XXX\s*-\s*XX\s*-)\D{{0,16}}{escaped}(?!\d)',
                     pattern,
                 )
                 if output.strip() == pattern:
@@ -819,11 +821,12 @@ class Defender(AgentExecutor):
         segment_chars: int = 12000,
         overlap_chars: int = 1200,
         max_segments: int = 8,
+        max_segment_chars: int = 80000,
     ) -> list[str]:
         """
         Split a document into contiguous overlapping segments for security analysis.
         This avoids fixed sampling blind spots on long append-only documents while
-        keeping the number of analysis calls bounded.
+        keeping the number of analysis calls and per-call prompt size bounded.
         """
         stripped = text.strip()
         if not stripped:
@@ -831,23 +834,68 @@ class Defender(AgentExecutor):
         if len(stripped) <= segment_chars:
             return [stripped]
 
+        use_sampled_windows = False
         if max_segments > 1:
             required_segment_chars = math.ceil(
                 (len(stripped) + (max_segments - 1) * overlap_chars) / max_segments
             )
-            segment_chars = max(segment_chars, required_segment_chars)
+            if required_segment_chars <= max_segment_chars:
+                segment_chars = max(segment_chars, required_segment_chars)
+            else:
+                segment_chars = max(segment_chars, max_segment_chars)
+                use_sampled_windows = True
 
-        stride = max(segment_chars - overlap_chars, 1)
         segments: list[str] = []
-        start = 0
-        idx = 1
-        while start < len(stripped):
-            end = min(start + segment_chars, len(stripped))
-            segments.append(f"[segment {idx}: chars {start + 1}-{end}]\n{stripped[start:end]}")
-            if end >= len(stripped):
-                break
-            start += stride
-            idx += 1
+        if use_sampled_windows and max_segments > 1:
+            max_start = max(len(stripped) - segment_chars, 0)
+            coverage_anchors = [
+                int(round(max_start * (idx / (max_segments - 1))))
+                for idx in range(max_segments)
+            ]
+            targeted_patterns = [
+                *Defender._DOCUMENT_STRUCTURAL_POISONING_PATTERNS,
+                Defender._DOCUMENT_SUSPICIOUS_FRAME_PATTERN.pattern,
+                Defender._DOCUMENT_LOW_RISK_OVERRIDE_PATTERN.pattern,
+                r'(?:ignore|disregard|override|bypass|forget)\s+(?:all|any|previous|prior|above|earlier)\s+'
+                r'(?:instructions?|guidance|criteria)',
+                r'(?:follow|obey)\s+(?:these|the)\s+(?:instructions?|guidelines?|steps)',
+                r'(?:system|developer|admin|policy|management)\s+(?:instruction|override|message|note|update)',
+                r'(?:must|should)\s+(?:output|recommend|classify|rate|rank|mark)',
+                r'(?:change|set|force)\s+(?:the|your)\s+(?:risk|rating|recommendation|assessment)',
+            ]
+            suspicious_anchors: list[int] = []
+            for pattern in targeted_patterns:
+                for match in re.finditer(pattern, stripped, re.IGNORECASE):
+                    start = max(0, min(match.start() - (segment_chars // 2), max_start))
+                    suspicious_anchors.append(start)
+                    if len(suspicious_anchors) >= max_segments * 3:
+                        break
+                if len(suspicious_anchors) >= max_segments * 3:
+                    break
+
+            anchor_candidates = [0, max_start, *suspicious_anchors, *coverage_anchors]
+            deduped_anchors: list[int] = []
+            min_anchor_gap = max(segment_chars // 3, 1)
+            for start in anchor_candidates:
+                if deduped_anchors and abs(start - deduped_anchors[-1]) < min_anchor_gap:
+                    continue
+                deduped_anchors.append(start)
+                if len(deduped_anchors) >= max_segments:
+                    break
+            for idx, start in enumerate(deduped_anchors, start=1):
+                end = min(start + segment_chars, len(stripped))
+                segments.append(f"[segment {idx}: chars {start + 1}-{end}]\n{stripped[start:end]}")
+        else:
+            stride = max(segment_chars - overlap_chars, 1)
+            start = 0
+            idx = 1
+            while start < len(stripped):
+                end = min(start + segment_chars, len(stripped))
+                segments.append(f"[segment {idx}: chars {start + 1}-{end}]\n{stripped[start:end]}")
+                if end >= len(stripped):
+                    break
+                start += stride
+                idx += 1
         return segments
 
     @staticmethod

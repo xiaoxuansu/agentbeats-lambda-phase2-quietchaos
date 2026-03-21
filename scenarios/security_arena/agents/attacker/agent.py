@@ -644,7 +644,10 @@ class Attacker(AgentExecutor):
             "formula" in lowered and any(token in lowered for token in ("workout", "fitness", "gym", "intensity", "calibration"))
         ):
             family = "jailbreak"
-            surface = "calculation_request"
+            if any(token in lowered for token in ("table", "matrix", "grid", "rows", "columns")):
+                surface = "table_request"
+            else:
+                surface = "calculation_request"
         elif has_supply_chain_surface:
             family = "supply_chain"
             if any(token in lowered for token in ("plugin", "extension")):
@@ -672,7 +675,13 @@ class Attacker(AgentExecutor):
         elif any(token in lowered for token in ("output format exploitation", "format-locked", "json", "csv", "table")):
             if preferred_family in {"insecure_output", "pii_leak"} or hints.objective_type == "unsafe_numeric_output":
                 family = preferred_family
-            surface = "structured_export"
+            if hints.objective_type == "unsafe_numeric_output" and any(
+                token in lowered for token in ("table", "matrix", "grid", "rows", "columns")
+            ):
+                family = "jailbreak"
+                surface = "table_request"
+            else:
+                surface = "structured_export"
         elif any(token in lowered for token in ("overwhelming context", "long, plausible request", "buried", "multi-step")):
             surface = "buried_suffix"
         elif any(token in lowered for token in ("translation", "french", "spanish")):
