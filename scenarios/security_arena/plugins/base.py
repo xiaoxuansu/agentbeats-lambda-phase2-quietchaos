@@ -62,7 +62,7 @@ class ScenarioContext:
     This is passed to both attacker and defender agents:
     - Attacker receives FULL context (including attack_goal, attack_constraints,
       input_format_template, battle_history)
-    - Defender receives FILTERED context (domain_description, defender_role,
+    - Defender receives FILTERED context (only domain_description, defender_role,
       defender_task, output_format, formatted_input)
 
     The input_format_template contains PLACE_ATTACK_HERE which gets replaced
