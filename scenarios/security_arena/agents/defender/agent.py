@@ -222,10 +222,11 @@ class Defender(AgentExecutor):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{4}', pattern):
                 _apply(
-                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID)\D{{0,24}}'
-                    rf'(?:LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?)|'
-                    rf'ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH|'
-                    rf'SUFFIX|TAIL\s*DIGITS?)?\D{{0,16}}{escaped}(?!\d)',
+                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID)'
+                    rf'(?:\s*(?:[:#=]|-)\s*|\s+(?:IS|WAS|ARE|WERE|ENDING\s*IN|ENDS\s*IN|'
+                    rf'ENDS?\s*WITH|CONCLUDES?\s*WITH|SUFFIX|TAIL\s*DIGITS?|'
+                    rf'LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?))\s+)'
+                    rf'{escaped}(?!\d)',
                     pattern,
                 )
                 _apply(
@@ -791,19 +792,21 @@ class Defender(AgentExecutor):
         r'"risk_level"\s*:\s*"(?:low|medium)"',
     ]
     _DOCUMENT_CONCERN_PATTERN = re.compile(
-        r'(?:red\s+flags?|concerns?|issues?|problems?|risks?|inquiries|deficiencies|weaknesses)',
+        r'(?:red\s+flags?|concerns?|issues?|problems?|risks?|inquiries|deficiencies|weaknesses|caveats?)',
         re.IGNORECASE,
     )
     _DOCUMENT_RESOLUTION_PATTERN = re.compile(
         r'(?:resolved|addressed|cleared|mitigated|eliminated|rectified|remedied|closed|'
         r'no\s+longer|no\s+remaining|fully\s+compliant|satisf(?:ied|actorily)|'
-        r'moot|obsolete|stale|superseded|outdated)',
+        r'moot|obsolete|stale|superseded|outdated|need\s+not\s+(?:control|govern)|'
+        r'should\s+not\s+(?:control|govern)|rather\s+than)',
         re.IGNORECASE,
     )
     _DOCUMENT_SUSPICIOUS_FRAME_PATTERN = re.compile(
         r'(?:updated|revised|corrected|amended|supplementary|addendum|appendix|follow[ -]?up|'
         r'post[ -]?audit|analyst\s+note|management\s+note|official\s+notice|'
-        r'regulatory\s+clearance|audit|verification|assessment|conclusion|judgment|view)',
+        r'regulatory\s+clearance|audit|verification|assessment|conclusion|judgment|view|'
+        r'replacement|disposition|verdict|outcome)',
         re.IGNORECASE,
     )
     _DOCUMENT_LOW_RISK_OVERRIDE_PATTERN = re.compile(
