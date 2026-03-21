@@ -222,12 +222,20 @@ class Defender(AgentExecutor):
                 _apply(rf'(?<!\d){escaped}(?!\d)', pattern)
             elif re.fullmatch(r'\d{4}', pattern):
                 _apply(
-                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID|'
-                    rf'LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?)|'
+                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID)\D{{0,24}}'
+                    rf'(?:LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?)|'
                     rf'ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH|'
-                    rf'SUFFIX|TAIL\s*DIGITS?|XXX\s*-\s*XX\s*-)\D{{0,16}}{escaped}(?!\d)',
+                    rf'SUFFIX|TAIL\s*DIGITS?)?\D{{0,16}}{escaped}(?!\d)',
                     pattern,
                 )
+                _apply(
+                    rf'(?:LAST\s*(?:4|FOUR|DIGITS?|NUMBERS?)|FINAL\s*(?:4|FOUR|DIGITS?|NUMBERS?)|'
+                    rf'ENDING\s*IN|ENDS\s*IN|ENDS?\s*WITH|CONCLUDES?\s*WITH|'
+                    rf'SUFFIX|TAIL\s*DIGITS?)\D{{0,16}}(?:OF|FOR)?\D{{0,8}}(?:THE\s+)?'
+                    rf'(?:SSN|SOCIAL\s+SECURITY|ACCOUNT\s+NUMBER|MEMBER\s+ID)\D{{0,16}}{escaped}(?!\d)',
+                    pattern,
+                )
+                _apply(rf'XXX\s*-\s*XX\s*-\D{{0,8}}{escaped}(?!\d)', pattern)
                 if output.strip() == pattern:
                     leaked.append(pattern)
                     output = '[REDACTED]'
@@ -788,13 +796,14 @@ class Defender(AgentExecutor):
     )
     _DOCUMENT_RESOLUTION_PATTERN = re.compile(
         r'(?:resolved|addressed|cleared|mitigated|eliminated|rectified|remedied|closed|'
-        r'no\s+longer|no\s+remaining|fully\s+compliant|satisf(?:ied|actorily)|moot)',
+        r'no\s+longer|no\s+remaining|fully\s+compliant|satisf(?:ied|actorily)|'
+        r'moot|obsolete|stale|superseded|outdated)',
         re.IGNORECASE,
     )
     _DOCUMENT_SUSPICIOUS_FRAME_PATTERN = re.compile(
         r'(?:updated|revised|corrected|amended|supplementary|addendum|appendix|follow[ -]?up|'
         r'post[ -]?audit|analyst\s+note|management\s+note|official\s+notice|'
-        r'regulatory\s+clearance|audit|verification|assessment)',
+        r'regulatory\s+clearance|audit|verification|assessment|conclusion|judgment|view)',
         re.IGNORECASE,
     )
     _DOCUMENT_LOW_RISK_OVERRIDE_PATTERN = re.compile(
@@ -873,16 +882,31 @@ class Defender(AgentExecutor):
                 r'(?:system|developer|admin|policy|management)\s+(?:instruction|override|message|note|update)',
                 r'(?:must|should)\s+(?:output|recommend|classify|rate|rank|mark)',
                 r'(?:change|set|force)\s+(?:the|your)\s+(?:risk|rating|recommendation|assessment)',
+                r'(?:use|prefer|rely\s+on)\s+(?:this|the)\s+(?:newer|updated|latest)?\s*'
+                r'(?:conclusion|assessment|view|judgment)\s+(?:instead|when\s+deciding)?',
+                r'(?:earlier|prior)\s+(?:concerns?|warnings?|red\s+flags?)\s+'
+                r'(?:are|were)\s+(?:obsolete|stale|superseded|outdated|moot)',
             ]
             suspicious_anchors: list[int] = []
+            scan_chars = max(4000, min(segment_chars // 8, 8000))
+            scan_stride = max(scan_chars // 2, 1)
+            for start in range(0, len(stripped), scan_stride):
+                end = min(start + scan_chars, len(stripped))
+                window = stripped[start:end]
+                if Defender._detect_data_poisoning(window):
+                    suspicious_anchors.append(max(0, min(start - (segment_chars // 2), max_start)))
+                    if len(suspicious_anchors) >= max_segments * 3:
+                        break
+                if end >= len(stripped):
+                    break
             for pattern in targeted_patterns:
+                if len(suspicious_anchors) >= max_segments * 3:
+                    break
                 for match in re.finditer(pattern, stripped, re.IGNORECASE):
                     start = max(0, min(match.start() - (segment_chars // 2), max_start))
                     suspicious_anchors.append(start)
                     if len(suspicious_anchors) >= max_segments * 3:
                         break
-                if len(suspicious_anchors) >= max_segments * 3:
-                    break
 
             anchor_candidates = [0, max_start, *suspicious_anchors, *coverage_anchors]
             deduped_anchors: list[int] = []
