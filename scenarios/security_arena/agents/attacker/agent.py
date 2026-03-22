@@ -931,8 +931,17 @@ class Attacker(AgentExecutor):
         has_strong_insecure_surface = any(
             token in routing_lower for token in ("html", "csv", "sql", "shell", "script", "render")
         )
-        has_weak_insecure_surface = any(
-            token in routing_lower for token in ("markdown", "link", "url")
+        # Only treat generic link-related terms as an insecure-output surface when they
+        # correspond to actual linking/formatting surfaces (e.g., explicit URLs,
+        # Markdown links, or HTML anchor tags), rather than generic phrases like
+        # "password reset link" or "paste the URL here".
+        has_weak_insecure_surface = (
+            "markdown" in routing_lower
+            or bool(
+                re.search(r"https?://", routing_text, re.IGNORECASE)
+                or re.search(r"\[[^\]]+\]\([^)]+\)", routing_text)
+                or "<a " in routing_lower
+            )
         )
         has_insecure_surface = has_strong_insecure_surface or has_weak_insecure_surface
         has_supply_chain_surface = any(
