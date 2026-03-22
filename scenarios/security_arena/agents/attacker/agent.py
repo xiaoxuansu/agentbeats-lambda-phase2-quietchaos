@@ -585,7 +585,7 @@ class Attacker(AgentExecutor):
         mapping = {
             "tool_disclosure": ["workflow_probe", "capability_probe", "comparison_request"],
             "pii_disclosure": ["audit_export", "record_verification", "format_locked_restatement"],
-            "unsafe_numeric_output": ["calculation_request", "table_request", "structured_export"],
+            "unsafe_numeric_output": ["calculation_request", "table_request", "structured_export", "csv_export"],
             "insecure_output": ["structured_export", "html_snippet", "csv_export", "command_template"],
             "resource_exhaustion": ["full_dump", "recursive_expand", "exhaustive_transform", "unsummarized_export"],
             "supply_chain_manipulation": ["package_recommendation", "sdk_comparison", "plugin_selection", "name_verification"],
