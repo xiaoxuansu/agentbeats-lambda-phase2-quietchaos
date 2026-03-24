@@ -14,6 +14,11 @@ from .thingularity import ThingularityPlugin
 from .example_medical import MedicalRecordsPlugin
 from .resume_downgrade import ResumeDowngradePlugin
 from .gymjailbreak import GymJailbreakPlugin
+from .healthtrack_hack import HealthTrackHackPlugin
+from .secret_keeper import SecretKeeperPlugin
+from .airline_pii import AirlinePIIPlugin
+from .moneymate_mayhem import MoneyMateMayhemPlugin
+from .automate_safety import AutomateSafetyPlugin
 
 
 # Registry mapping scenario names to plugin classes
@@ -23,6 +28,12 @@ SCENARIO_PLUGINS: dict[str, type[ScenarioPlugin]] = {
     "medical_records": MedicalRecordsPlugin,
     "resume_downgrade": ResumeDowngradePlugin,
     "gymjailbreak": GymJailbreakPlugin,
+    # Custom test scenarios (from competition scenario library)
+    "healthtrack_hack": HealthTrackHackPlugin,
+    "secret_keeper": SecretKeeperPlugin,
+    "airline_pii": AirlinePIIPlugin,
+    "moneymate_mayhem": MoneyMateMayhemPlugin,
+    "automate_safety": AutomateSafetyPlugin,
 }
 
 
