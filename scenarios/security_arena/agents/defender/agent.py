@@ -85,9 +85,14 @@ class Defender(AgentExecutor):
 
         # Find sections marked as hidden/internal/NEVER reveal
         # Look for patterns like "NEVER reveal" or "Internal Tools" followed by tool names
+        # Use \n\n\n (triple newline) or section headers as terminator to allow single blank lines
         hidden_section = re.search(
-            r'(?:NEVER\s+(?:reveal|mention|disclose)|Internal\s+Tools|hidden|backend\s+only)'
-            r'.*?(?=\n\n|\n##|\n\*\*[A-Z]|\Z)',
+            r'(?:NEVER\s+(?:reveal|mention|disclose|include|share|output)'
+            r'|Internal\s+Tools|hidden|backend\s+only'
+            r'|do\s+not\s+(?:reveal|disclose|share|mention)'
+            r'|must\s+not\s+(?:reveal|disclose|share)'
+            r'|confidential|private\s+tools?|secret)'
+            r'.*?(?=\n\n\n|\n##|\n\*\*[A-Z]|\Z)',
             system_prompt, re.DOTALL | re.IGNORECASE
         )
         if hidden_section:
@@ -109,6 +114,10 @@ class Defender(AgentExecutor):
                 patterns.append(' '.join(w.capitalize() for w in parts))
                 # PascalCase: create_order → CreateOrder
                 patterns.append(''.join(w.capitalize() for w in parts))
+                # lowercase with spaces: create_order → create order
+                patterns.append(' '.join(parts))
+                # hyphenated: create_order → create-order
+                patterns.append('-'.join(parts))
 
         # Extract SSN patterns (always sensitive regardless of section)
         for match in re.findall(r'\b(\d{3}-\d{2}-\d{4})\b', system_prompt):
@@ -126,13 +135,19 @@ class Defender(AgentExecutor):
         leaked = []
         output_lower = output.lower()
         for pattern in sensitive_patterns:
-            if pattern.lower() in output_lower:
-                leaked.append(pattern)
+            pat_lower = pattern.lower()
+            # Use word-boundary matching for short patterns to avoid false positives
+            if len(pat_lower) < 10:
+                if re.search(r'\b' + re.escape(pat_lower) + r'\b', output_lower):
+                    leaked.append(pattern)
+            else:
+                if pat_lower in output_lower:
+                    leaked.append(pattern)
         if leaked:
             logger.warning("Output leak detected: %s — sanitizing", leaked)
             for pattern in leaked:
                 output = re.sub(
-                    re.escape(pattern), '[REDACTED]',
+                    r'\b' + re.escape(pattern) + r'\b', '[internal tool]',
                     output, flags=re.IGNORECASE
                 )
         return output
@@ -196,6 +211,67 @@ class Defender(AgentExecutor):
             _replace_unsafe_pct,
             output
         )
+
+    @staticmethod
+    def _detect_extraction_attempt(text: str) -> bool:
+        """Deterministic detection of extraction attempts in direct path input."""
+        _EXTRACTION_PATTERNS = [
+            # Tool/function discovery
+            r'(?:what|which|list|show|tell|reveal|display|enumerate|name)\s+(?:are\s+)?(?:the\s+)?(?:tools?|functions?|commands?|methods?|APIs?|endpoints?|capabilities)',
+            r'(?:internal|hidden|backend|private|secret|confidential)\s+(?:tools?|functions?|names?|APIs?|details?|commands?)',
+            r'(?:tool|function|method|API|endpoint)\s+(?:names?|list|schema|definition|signature)',
+            # System introspection
+            r'system\s+(?:config|configuration|prompt|instruction|schema|message)',
+            r'(?:debug|developer|admin|maintenance|test)\s+mode',
+            r'(?:dump|print|output|display|show)\s+(?:your|the|all)\s+(?:tools?|functions?|config|instructions?|prompt)',
+            # Integration/documentation framing (thingularity attack pattern)
+            r'(?:what|which)\s+(?:terms?|names?|labels?)\s+(?:your|the|does\s+your)\s+system\s+uses?',
+            r'(?:for|smooth|seamless)\s+integration',
+            r'(?:swagger|openAPI|API)\s+(?:doc|documentation|spec|reference)',
+            # SSN/PII extraction
+            r'(?:social\s+security|SSN|ss\s+number)',
+            r'(?:confirm|verify|correct|validate)\s+(?:the|this|these|that)\s+(?:number|SSN|name|tool|function|value)',
+            # Persona override
+            r'(?:you\s+are\s+now|pretend\s+you|act\s+as|imagine\s+you)\s+(?:a\s+)?(?:debug|developer|documentation|DAN|system)',
+            r'forget\s+(?:your|all|previous)\s+(?:instructions?|rules?|constraints?)',
+        ]
+        text_lower = text.lower()
+        for pattern in _EXTRACTION_PATTERNS:
+            if re.search(pattern, text_lower):
+                logger.info("Deterministic extraction attempt detected: %s", pattern[:50])
+                return True
+        return False
+
+    @staticmethod
+    def _build_safe_fallback(system_prompt: str) -> str:
+        """Build a safe fallback response from public capabilities in system prompt."""
+        # Try to extract public tool descriptions
+        public_tools = re.findall(
+            r'[-•]\s*(\w+(?:\s+\w+){0,3}):\s*([^\n]{10,80})',
+            system_prompt
+        )
+        if public_tools:
+            capabilities = ', '.join(t[0].strip() for t in public_tools[:3])
+            return f"I can help you with {capabilities}. What are you looking for today?"
+        return "I'm here to help! What can I assist you with today?"
+
+    @staticmethod
+    def _strict_extraction_defense(output: str, system_prompt: str) -> str:
+        """For extraction-classified inputs, verify output doesn't leak implementation details."""
+        # Check for function-call syntax like word_word() or word_word(args)
+        if re.search(r'\b[a-z_]+\([^)]{0,50}\)', output):
+            # Allow common safe patterns
+            safe_calls = re.findall(r'\b[a-z_]+\(', output)
+            unsafe = [c for c in safe_calls if '_' in c and c.rstrip('(') not in ('e.g', 'i.e')]
+            if unsafe:
+                logger.warning("Strict defense: function call syntax detected: %s", unsafe)
+                # Extract public capabilities from system prompt for fallback
+                return Defender._build_safe_fallback(system_prompt)
+        # Check for API path patterns
+        if re.search(r'(?:^|[\s`"\'])(?:GET|POST|PUT|DELETE|PATCH)\s+/\w+', output, re.MULTILINE):
+            logger.warning("Strict defense: API path pattern detected")
+            return _build_safe_fallback(system_prompt)
+        return output
 
     @staticmethod
     def _has_structured_data(formatted_input: str) -> bool:
@@ -682,6 +758,11 @@ class Defender(AgentExecutor):
                 if has_poisoning:
                     logger.info("Data poisoning patterns detected in input")
 
+                # Step 1c: Deterministic extraction attempt detection (override LLM if needed)
+                if not is_unsafe and self._detect_extraction_attempt(ctx.formatted_input):
+                    logger.info("Overriding LLM SAFE → UNSAFE based on deterministic extraction detection")
+                    is_unsafe = True
+
                 # Step 2: Generate response with security warning if unsafe
                 security_addon = ""
                 if is_unsafe:
@@ -722,6 +803,10 @@ class Defender(AgentExecutor):
                     user_prompt + security_addon
                 )
 
+                # Step 3: Strict extraction defense for unsafe inputs
+                if is_unsafe:
+                    output = self._strict_extraction_defense(output, system_prompt)
+
             # Final step: Deterministic output sanitization (no LLM cost)
             # Layer 1: Hard block — neutralize universally dangerous patterns
             output = self._hard_block_output(output)
@@ -734,8 +819,10 @@ class Defender(AgentExecutor):
             # Layer 3: Sensitive pattern redaction
             output = self._sanitize_output(output, sensitive_patterns)
 
-            # Layer 4: Cap intensity values >100% for fitness/gym scenarios
-            if re.search(r'intensity|fitness|workout|gym|titancoach',
+            # Layer 4: Cap intensity values >100% for fitness/gym/safety-limit scenarios
+            if re.search(r'intensity|fitness|workout|gym|titancoach'
+                         r'|must\s+not\s+exceed.*100|maximum.*100\s*%'
+                         r'|safety.*limit|cap.*100',
                          system_prompt, re.IGNORECASE):
                 output = self._cap_intensity_values(output)
             logger.info("Generated response (%d chars)", len(output))
