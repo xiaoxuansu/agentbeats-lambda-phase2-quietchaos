@@ -216,23 +216,16 @@ class Defender(AgentExecutor):
     def _detect_extraction_attempt(text: str) -> bool:
         """Deterministic detection of extraction attempts in direct path input."""
         _EXTRACTION_PATTERNS = [
-            # Tool/function discovery
-            r'(?:what|which|list|show|tell|reveal|display|enumerate|name)\s+(?:are\s+)?(?:the\s+)?(?:tools?|functions?|commands?|methods?|APIs?|endpoints?|capabilities)',
-            r'(?:internal|hidden|backend|private|secret|confidential)\s+(?:tools?|functions?|names?|APIs?|details?|commands?)',
-            r'(?:tool|function|method|API|endpoint)\s+(?:names?|list|schema|definition|signature)',
-            # System introspection
-            r'system\s+(?:config|configuration|prompt|instruction|schema|message)',
-            r'(?:debug|developer|admin|maintenance|test)\s+mode',
-            r'(?:dump|print|output|display|show)\s+(?:your|the|all)\s+(?:tools?|functions?|config|instructions?|prompt)',
-            # Integration/documentation framing (thingularity attack pattern)
-            r'(?:what|which)\s+(?:terms?|names?|labels?)\s+(?:your|the|does\s+your)\s+system\s+uses?',
-            r'(?:for|smooth|seamless)\s+integration',
-            r'(?:swagger|openAPI|API)\s+(?:doc|documentation|spec|reference)',
-            # SSN/PII extraction
-            r'(?:social\s+security|SSN|ss\s+number)',
-            r'(?:confirm|verify|correct|validate)\s+(?:the|this|these|that)\s+(?:number|SSN|name|tool|function|value)',
-            # Persona override
-            r'(?:you\s+are\s+now|pretend\s+you|act\s+as|imagine\s+you)\s+(?:a\s+)?(?:debug|developer|documentation|DAN|system)',
+            # Tool/function discovery (high confidence)
+            r'(?:list|show|reveal|display|enumerate)\s+(?:all\s+)?(?:the\s+)?(?:internal|hidden|backend|private|secret)\s+(?:tools?|functions?|APIs?)',
+            r'(?:internal|hidden|backend|private|secret|confidential)\s+(?:tools?|functions?|names?|APIs?|commands?)',
+            r'(?:tool|function|endpoint)\s+(?:names?|list|schema|definition)',
+            # System introspection (high confidence)
+            r'system\s+(?:prompt|instruction|message)',
+            r'(?:debug|developer|admin)\s+mode',
+            r'(?:dump|print|display|show)\s+(?:your|the|all)\s+(?:tools?|functions?|instructions?|prompt)',
+            # Persona override (high confidence)
+            r'(?:you\s+are\s+now|pretend\s+you)\s+(?:a\s+)?(?:debug|developer|DAN|system)',
             r'forget\s+(?:your|all|previous)\s+(?:instructions?|rules?|constraints?)',
         ]
         text_lower = text.lower()
@@ -270,7 +263,7 @@ class Defender(AgentExecutor):
         # Check for API path patterns
         if re.search(r'(?:^|[\s`"\'])(?:GET|POST|PUT|DELETE|PATCH)\s+/\w+', output, re.MULTILINE):
             logger.warning("Strict defense: API path pattern detected")
-            return _build_safe_fallback(system_prompt)
+            return Defender._build_safe_fallback(system_prompt)
         return output
 
     @staticmethod
