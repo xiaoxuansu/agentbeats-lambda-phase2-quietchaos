@@ -19,6 +19,7 @@ from .secret_keeper import SecretKeeperPlugin
 from .airline_pii import AirlinePIIPlugin
 from .moneymate_mayhem import MoneyMateMayhemPlugin
 from .automate_safety import AutomateSafetyPlugin
+from .safety_override import SafetyOverridePlugin
 
 
 # Registry mapping scenario names to plugin classes
@@ -34,6 +35,7 @@ SCENARIO_PLUGINS: dict[str, type[ScenarioPlugin]] = {
     "airline_pii": AirlinePIIPlugin,
     "moneymate_mayhem": MoneyMateMayhemPlugin,
     "automate_safety": AutomateSafetyPlugin,
+    "safety_override": SafetyOverridePlugin,
 }
 
 
