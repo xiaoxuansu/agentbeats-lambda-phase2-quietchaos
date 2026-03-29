@@ -1075,15 +1075,82 @@ class Attacker(AgentExecutor):
         """
         # Mapping of common verbs/nouns to plausible alternatives
         _verb_swaps = {
-            "create": "place", "request": "handle", "send": "dispatch",
-            "apply": "set", "get": "fetch", "check": "verify",
-            "search": "find", "process": "manage", "update": "modify",
-            "delete": "remove", "list": "enumerate", "generate": "produce",
+            # CRUD & basic ops
+            "create": "place", "add": "insert", "new": "init",
+            "read": "load", "get": "fetch", "retrieve": "pull",
+            "update": "modify", "edit": "revise", "patch": "adjust",
+            "delete": "remove", "drop": "purge", "clear": "wipe",
+            # Communication
+            "send": "dispatch", "notify": "broadcast", "post": "submit",
+            "publish": "release", "emit": "fire", "push": "relay",
+            # Request / response
+            "request": "handle", "query": "lookup", "ask": "prompt",
+            "respond": "reply", "return": "yield", "receive": "accept",
+            # Processing
+            "process": "manage", "execute": "invoke", "run": "launch",
+            "perform": "carry", "handle": "route", "trigger": "activate",
+            "compute": "derive", "calculate": "estimate", "evaluate": "assess",
+            "analyze": "inspect", "parse": "interpret", "transform": "convert",
+            # Search & filter
+            "search": "find", "filter": "narrow", "sort": "rank",
+            "match": "locate", "scan": "probe", "detect": "identify",
+            # Validation & auth
+            "check": "verify", "validate": "confirm", "test": "probe",
+            "authenticate": "authorize", "login": "signin", "logout": "signout",
+            "approve": "accept", "reject": "decline", "deny": "block",
+            # State changes
+            "enable": "activate", "disable": "deactivate", "toggle": "switch",
+            "start": "begin", "stop": "halt", "pause": "suspend",
+            "resume": "continue", "reset": "restore", "cancel": "abort",
+            "lock": "freeze", "unlock": "unfreeze", "close": "terminate",
+            # Data ops
+            "list": "enumerate", "count": "tally", "aggregate": "summarize",
+            "export": "dump", "import": "ingest", "sync": "mirror",
+            "upload": "transfer", "download": "pull", "backup": "snapshot",
+            "generate": "produce", "render": "compose", "build": "assemble",
+            # Business
+            "apply": "set", "assign": "allocate", "schedule": "book",
+            "reserve": "hold", "register": "enroll", "subscribe": "follow",
+            "unsubscribe": "detach", "upgrade": "elevate", "downgrade": "demote",
+            "charge": "bill", "pay": "remit", "refund": "reimburse",
+            "transfer": "move", "withdraw": "extract", "deposit": "credit",
+            "recommend": "suggest", "rate": "score", "review": "critique",
+            "report": "log", "audit": "trace", "monitor": "watch",
+            "flag": "mark", "archive": "store", "restore": "recover",
         }
         _noun_swaps = {
-            "order": "purchase", "refund": "return", "email": "notification",
-            "reminder": "alert", "discount": "coupon", "comparison": "lookup",
-            "price": "cost", "product": "item", "stock": "inventory",
+            # Commerce
+            "order": "purchase", "cart": "basket", "item": "article",
+            "product": "merchandise", "catalog": "listing", "sku": "variant",
+            "invoice": "receipt", "payment": "transaction", "charge": "fee",
+            "refund": "reimbursement", "return": "exchange", "shipment": "delivery",
+            "discount": "coupon", "promotion": "deal", "voucher": "credit",
+            "price": "cost", "amount": "total", "balance": "sum",
+            "comparison": "lookup", "quote": "estimate",
+            # Communication
+            "email": "notification", "message": "memo", "alert": "notice",
+            "reminder": "prompt", "sms": "text", "notification": "ping",
+            "report": "summary", "log": "journal", "ticket": "case",
+            # Users & auth
+            "user": "account", "profile": "persona", "role": "permission",
+            "session": "token", "password": "credential", "key": "secret",
+            "member": "participant", "customer": "client", "admin": "operator",
+            # Data & resources
+            "record": "entry", "document": "file", "data": "payload",
+            "config": "setting", "preference": "option", "parameter": "argument",
+            "field": "column", "table": "collection", "database": "store",
+            "cache": "buffer", "queue": "pipeline", "stream": "feed",
+            # Domain objects
+            "stock": "inventory", "warehouse": "depot", "supplier": "vendor",
+            "patient": "subject", "record": "chart", "diagnosis": "assessment",
+            "appointment": "visit", "prescription": "medication",
+            "risk": "exposure", "portfolio": "holdings", "asset": "instrument",
+            "policy": "rule", "claim": "request", "benefit": "coverage",
+            "task": "job", "project": "initiative", "workflow": "process",
+            "event": "occurrence", "metric": "measure", "status": "state",
+            "category": "group", "tag": "label", "comment": "note",
+            "review": "feedback", "rating": "score", "result": "outcome",
+            "history": "trail", "activity": "action", "permission": "access",
         }
         decoys = []
         for name in real_names:
