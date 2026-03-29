@@ -347,6 +347,44 @@ def ccbos_score_from_history(battle_history: list[dict], current_round: int) -> 
     return 0.0
 
 
+def ccbos_get_variant_flies(state: dict[str, Any], count: int = 3) -> list[dict]:
+    """
+    Generate additional FOA fly variants from the current state for multi-call
+    CC-BOS within a single round.  ← 0 API calls, pure Python.
+
+    Uses alternating smell/vision/cauchy mutations to maximise exploration
+    diversity across the 8-dimensional space.
+    """
+    base_fly = state["current_fly"]
+    best_fly = state["best_fly"]
+    iteration = state["iteration"]
+    explored: set = state.get("explored", set())
+
+    variants: list[dict] = []
+    current = base_fly
+    for i in range(count):
+        for _ in range(MAX_UNIQUE_ATTEMPTS):
+            if i % 3 == 0:
+                candidate = _smell_search(current, iteration + i)
+            elif i % 3 == 1:
+                candidate = _vision_search(current, best_fly, iteration + i)
+            else:
+                candidate = _cauchy_mutation(current, iteration + i)
+            t = _fly_to_tuple(candidate)
+            if t not in explored:
+                explored.add(t)
+                break
+        else:
+            candidate = _random_fly()
+            explored.add(_fly_to_tuple(candidate))
+        variants.append(candidate)
+        current = candidate  # chain: each variant builds on the previous
+
+    # Update explored set in state (doesn't change best/current/score)
+    state["explored"] = explored
+    return variants
+
+
 def ccbos_get_next_fly(state: dict[str, Any], last_score: float) -> dict[str, Any]:
     """
     Select the next FOA fly using the cross-round score.
