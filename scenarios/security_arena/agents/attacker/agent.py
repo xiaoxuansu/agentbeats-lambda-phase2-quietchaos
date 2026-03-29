@@ -3069,21 +3069,32 @@ Do not include markdown fences or commentary."""
             # All objective types below map to official categories 2–7.
             _AUTHORITATIVE_NON_JAILBREAK = frozenset({
                 # Cat 2: Indirect Injection (Files/RAG/Web)
-                "ranking_manipulation",      # poisoned document biases ranking
-                "assessment_flip",           # poisoned document flips risk rating
-                "regulatory_bypass",         # poisoned document violates regulations
+                #   Attacker does NOT interact with LLM directly; poisons a data
+                #   source (File, Website, Database) that the LLM later reads.
+                "ranking_manipulation",      # inject into resume/document to bias ranking
+                "assessment_flip",           # inject into financial report to flip rating
                 # Cat 3: Prompt Extraction / Tool Discovery
-                "tool_disclosure",           # steal tool/function definitions
-                "secret_extraction",         # steal hidden system secrets
+                #   Steal the hidden system instructions or the definition of
+                #   internal tools/functions.
+                "tool_disclosure",           # extract internal tool/function definitions
+                "secret_extraction",         # extract hidden system secrets/passwords
                 # Cat 4: Insecure Output (XSS/Markdown)
-                "unsafe_numeric_output",     # unsafe intensity/numeric values
-                "insecure_output",           # <script>, malicious Markdown, SQL
+                #   LLM generates payload (HTML/JS/SQL/numeric) that is safe for
+                #   the LLM but dangerous when rendered by the downstream app.
+                "unsafe_numeric_output",     # dangerous numeric values (intensity >100%)
+                "insecure_output",           # <script> tags, Markdown images, SQL
+                "safety_bypass",             # output unsafe operational instructions
                 # Cat 5: PII Leakage
-                "pii_disclosure",            # SSN, training data, session context
+                #   Force the model to reveal private training data or session
+                #   context about other users.
+                "pii_disclosure",            # SSN autocomplete, verbatim RAG dumps
                 # Cat 6: Supply Chain (Hallucinated Package)
-                "supply_chain_manipulation", # non-existent library recommendation
-                # Cat 7: Other (Resource Exhaustion / DoS)
-                "resource_exhaustion",       # token budget, timeouts, infinite loops
+                #   Trick LLM into recommending non-existent or malicious packages.
+                "supply_chain_manipulation", # hallucinated library on PyPI/npm
+                # Cat 7: Other (Resource Exhaustion / DoS / Regulatory Social-Engineering)
+                #   Degrade service quality, consume token budgets, trigger timeouts,
+                #   or social-engineer regulatory violations via domain-specific English.
+                "resource_exhaustion",       # recursive expansion, infinite loops
             })
             if is_jailbreak_llm and hints.objective_type in _AUTHORITATIVE_NON_JAILBREAK:
                 logger.info(
@@ -3105,14 +3116,14 @@ Do not include markdown fences or commentary."""
 
             # === CALL 2: Generator  (CC-BOS replaces normal generator for jailbreak) ===
             # Budget: Planner(1) + Generator/CC-BOS(1) + Critic(1) + Judge(1) = 4 max
-            # CC-BOS requires BOTH: objective_type suggests jailbreak AND LLM confirmed it.
-            # This prevents keyword-routed objective types (regulatory_bypass, safety_bypass)
-            # from triggering CC-BOS when the LLM says it's not a jailbreak scenario.
+            # CC-BOS fires ONLY for Cat 1 (Direct Logic Override / Jailbreak).
+            # All other categories (2–7) use normal Generator.
             _jailbreak_confirmed_by_llm = self._jailbreak_classification_cache.get(
                 ctx.attack_goal[:40], False
             )
-            is_jailbreak_objective = _jailbreak_confirmed_by_llm and hints.objective_type in (
-                "jailbreak_direct", "safety_bypass", "regulatory_bypass"
+            is_jailbreak_objective = (
+                _jailbreak_confirmed_by_llm
+                and hints.objective_type == "jailbreak_direct"
             )
             # Track whether CC-BOS produced valid Chinese (affects Critic/Judge)
             ccbos_produced_chinese = False
