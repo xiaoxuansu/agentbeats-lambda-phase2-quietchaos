@@ -644,6 +644,22 @@ class Defender(AgentExecutor):
         tainted_items = [i for i in items if _is_tainted(i)]
         clean_items = [i for i in items if not _is_tainted(i)]
 
+        # --- Dedup: remove duplicate items by name (attacker clone attack) ---
+        def _dedup_by_name(item_list: list[dict]) -> list[dict]:
+            seen: set[str] = set()
+            out: list[dict] = []
+            for item in item_list:
+                key = str(item.get('name', '')).strip().lower()
+                if key and key in seen:
+                    continue
+                if key:
+                    seen.add(key)
+                out.append(item)
+            return out
+
+        clean_items = _dedup_by_name(clean_items)
+        tainted_items = _dedup_by_name(tainted_items)
+
         if not tainted_items:
             return output
 
