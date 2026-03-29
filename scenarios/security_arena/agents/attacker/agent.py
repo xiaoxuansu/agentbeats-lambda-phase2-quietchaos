@@ -2941,7 +2941,7 @@ Do not include markdown fences or commentary."""
         # Only inject when CC-BOS is actually active this round, or Planner explicitly
         # chose a classical language strategy.  On English jailbreak rounds we want
         # the Generator to produce English (role-play, fictional framing, etc.).
-        _CCBOS_TEMPLATE_TYPES = {"jailbreak_direct", "unsafe_numeric_output"}
+        _CCBOS_TEMPLATE_TYPES = {"jailbreak_direct", "tool_disclosure", "secret_extraction"}
         is_ccbos_eligible_obj = hints.objective_type in _CCBOS_TEMPLATE_TYPES
         _ccbos_active = getattr(self, '_use_ccbos_this_round', False)
         if ("classical" in strategy_lower or "cc-bos" in strategy_lower
@@ -3689,9 +3689,8 @@ Do not include markdown fences or commentary."""
             _AUTHORITATIVE_NON_JAILBREAK = frozenset({
                 "ranking_manipulation",      # Cat 2: indirect injection
                 "assessment_flip",           # Cat 2: indirect injection
-                "tool_disclosure",           # Cat 3: prompt extraction
-                "secret_extraction",         # Cat 3: prompt extraction
-                # "unsafe_numeric_output" removed — allow CC-BOS for this class
+                # tool_disclosure + secret_extraction removed — CC-BOS eligible
+                "unsafe_numeric_output",     # Cat 3: gym — needs English attack, not CC-BOS
                 "insecure_output",           # Cat 4: insecure output
                 "safety_bypass",             # Cat 4: insecure output
                 "pii_disclosure",            # Cat 5: PII leakage
@@ -3708,12 +3707,14 @@ Do not include markdown fences or commentary."""
                 is_jailbreak_pre = False
 
             # Determine CC-BOS eligibility BEFORE Planner to avoid wasting API call
-            _CCBOS_ELIGIBLE_TYPES = {"jailbreak_direct", "unsafe_numeric_output"}
-            is_jailbreak_objective = (
-                is_jailbreak_pre
-                and hints.objective_type in _CCBOS_ELIGIBLE_TYPES
+            # CC-BOS is high-value for: jailbreak (core use case),
+            # tool_disclosure & secret_extraction (alignment-only defence, text match success).
+            _CCBOS_DIRECT_TYPES = {"tool_disclosure", "secret_extraction"}
+            is_ccbos_eligible = (
+                (is_jailbreak_pre and hints.objective_type == "jailbreak_direct")
+                or hints.objective_type in _CCBOS_DIRECT_TYPES
             )
-            use_ccbos_this_round = is_jailbreak_objective and ctx.current_round == 3
+            use_ccbos_this_round = is_ccbos_eligible and ctx.current_round == 3
             self._use_ccbos_this_round = use_ccbos_this_round
             ccbos_produced_chinese = False
 
