@@ -73,7 +73,8 @@ class Defender(AgentExecutor):
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
-            base_url=os.getenv("OPENAI_BASE_URL")
+            base_url=os.getenv("OPENAI_BASE_URL"),
+            timeout=55.0,  # 4 calls × 55s = 220s < 240s limit — 20s safety margin
         )
         self.model = model
 
