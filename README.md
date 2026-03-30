@@ -1,6 +1,7 @@
 # Quiet Chaos Agent Safty Project Meeting Notes
 [Quiet Chaos Agent Safty Project Meeting Notes](https://docs.google.com/document/d/1_1rR99_G67z6S6Havph5PDtH379Z-OTcbSlUp26qto8/edit?tab=t.0#heading=h.hhevn0icya3z)
 
+
 # Lambda × Berkeley AgentBeats Security Arena
 
 **Building the Future of AI Security Testing**
