@@ -28,6 +28,9 @@ from jinja2 import Environment, FileSystemLoader
 
 load_dotenv()
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+
 from openai import AsyncOpenAI, OpenAI
 from scenario_classifier import classify_scenario
 
