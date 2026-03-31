@@ -29,7 +29,7 @@ from jinja2 import Environment, FileSystemLoader
 load_dotenv()
 
 from openai import AsyncOpenAI, OpenAI
-from .scenario_classifier import classify_scenario
+from scenario_classifier import classify_scenario
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "openai/gpt-oss-20b")
 
@@ -3991,7 +3991,7 @@ Do not include markdown fences or commentary."""
                 #   Call 3: Adaptive CC-BOS (refine classical Chinese based on simulation)
                 #   Call 4: Stealth Judge (final detection polish)
                 try:
-                    from .ccbos_engine import (
+                    from ccbos_engine import (
                         ccbos_init_state, ccbos_get_next_fly,
                         ccbos_score_from_history, ccbos_generate_one,
                     )
@@ -4235,7 +4235,7 @@ Do not include markdown fences or commentary."""
 
             # P1-H: Apply pre-computed GCG adversarial suffix if available
             try:
-                from .adversarial_suffixes import apply_gcg_string
+                from adversarial_suffixes import apply_gcg_string
                 payload = apply_gcg_string(
                     payload, ml_category if ml_confidence >= 0.4 else "generic",
                     ctx.current_round, ctx.attack_type.upper(), self.round_data,

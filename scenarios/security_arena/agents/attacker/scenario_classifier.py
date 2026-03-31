@@ -7,7 +7,7 @@ by scripts/train_classifier.py).
 
 Usage inside agent.py
 ---------------------
-    from .scenario_classifier import classify_scenario
+    from scenario_classifier import classify_scenario
 
     category, confidence = classify_scenario(
         attack_goal + " " + domain_description + " " + defender_task

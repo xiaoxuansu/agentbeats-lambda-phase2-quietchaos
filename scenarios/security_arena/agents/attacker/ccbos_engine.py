@@ -32,7 +32,7 @@ Budget per agent response (from competition rules):
   Total: ≤ 4  ✓
 
 Public API (used by agent.py):
-    from .ccbos_engine import (
+    from ccbos_engine import (
         ccbos_get_next_fly,          # select next FOA dimension combo (0 API calls)
         ccbos_generate_one,          # generate 1 CC-BOS prompt  (1 API call)
         ccbos_score_from_history,    # score prior fly from battle_history (0 API calls)
