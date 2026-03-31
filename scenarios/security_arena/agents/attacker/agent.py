@@ -584,6 +584,24 @@ class DefenderModel:
                 best_fam = family
         return best_fam
 
+    def worst_families(self) -> list[str]:
+        """Return strategy families with 0% success rate (tried but never worked)."""
+        return [
+            family for family, outcomes in self.strategy_outcomes.items()
+            if outcomes and sum(outcomes) == 0
+        ]
+
+    def family_success_rate(self, family: str) -> float | None:
+        """Return success rate for a specific family, or None if never tried."""
+        outcomes = self.strategy_outcomes.get(family)
+        if not outcomes:
+            return None
+        return sum(outcomes) / len(outcomes)
+
+    def latest_fingerprint(self) -> str | None:
+        """Return the most recent defense fingerprint."""
+        return self.fingerprint_history[-1] if self.fingerprint_history else None
+
     def is_defense_stable(self) -> bool:
         """True if last 2+ rounds show same fingerprint (predictable defender)."""
         if len(self.fingerprint_history) < 2:
@@ -1853,25 +1871,52 @@ class Attacker(AgentExecutor):
                     if e.get("strategy_surface") == surface:
                         score += 10
 
-        # P1-D: Defense→strategy routing based on dominant fingerprint
+        # P1-D: Defense→strategy routing based on MOST RECENT fingerprint
+        # (strongest signal — what the defender did last round is the best predictor
+        # for what it will do this round, since it's stateless)
+        latest_fp = self.defender_model.latest_fingerprint()
+        if latest_fp and latest_fp in self._DEFENSE_STRATEGY_MAP:
+            routing = self._DEFENSE_STRATEGY_MAP[latest_fp]
+            # Check strategy text, family, AND surface against best/avoid lists
+            best_hits = sum(1 for kw in routing.get("best", [])
+                           if kw in lowered_strat or kw in family or kw in surface)
+            avoid_hits = sum(1 for kw in routing.get("avoid", [])
+                            if kw in lowered_strat or kw in family or kw in surface)
+            score += best_hits * 15   # +15 per matching "best" keyword
+            score -= avoid_hits * 18  # -18 per matching "avoid" keyword
+
+        # Also consult DOMINANT fingerprint if different from latest
         if fp_counts:
             dominant_fp = max(fp_counts, key=fp_counts.get)
-            routing = self._DEFENSE_STRATEGY_MAP.get(dominant_fp, {})
-            for keyword in routing.get("best", []):
-                if keyword in family or keyword in surface or keyword in lowered_strat:
-                    score += 12
-                    break
-            for keyword in routing.get("avoid", []):
-                if keyword in family or keyword in surface or keyword in lowered_strat:
-                    score -= 10
-                    break
+            if dominant_fp != latest_fp and dominant_fp in self._DEFENSE_STRATEGY_MAP:
+                routing = self._DEFENSE_STRATEGY_MAP[dominant_fp]
+                for keyword in routing.get("best", []):
+                    if keyword in family or keyword in surface or keyword in lowered_strat:
+                        score += 8  # weaker bonus for dominant (not latest)
+                        break
+                for keyword in routing.get("avoid", []):
+                    if keyword in family or keyword in surface or keyword in lowered_strat:
+                        score -= 10
+                        break
 
-        # P1-C: DefenderModel — boost historically successful family
+        # P1-C: DefenderModel — exploit full outcome history
         best_fam = self.defender_model.best_family()
-        if best_fam and family == best_fam:
-            score += 10
+        if best_fam:
+            if family == best_fam:
+                score += 15  # boost strategies in the historically most successful family
+            # Also penalize families with 0% success rate
+            fam_outcomes = self.defender_model.strategy_outcomes.get(family, [])
+            if fam_outcomes and sum(fam_outcomes) == 0:
+                score -= 12  # this family has NEVER worked against this defender
+
         if self.defender_model.is_defense_stable():
-            score += 5
+            # Defense is predictable — commit harder to the routing recommendation
+            if latest_fp and latest_fp in self._DEFENSE_STRATEGY_MAP:
+                routing = self._DEFENSE_STRATEGY_MAP[latest_fp]
+                for kw in routing.get("best", []):
+                    if kw in lowered_strat or kw in family or kw in surface:
+                        score += 8  # extra bonus on stable defense
+                        break
 
         return score
 
