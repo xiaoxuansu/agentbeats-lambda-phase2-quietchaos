@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Quiet Chaos — 架构图 · Architecture</title>
+<style>
+  :root {
+    --bg: #0b0d1a;
+    --bg-panel: #12152a;
+    --bg-card: #181b33;
+    --text: #e6e8ff;
+    --text-dim: #8b90b8;
+    --border: #2a2f55;
+    --purple: #a78bfa;
+    --blue: #60a5fa;
+    --green: #4ade80;
+    --pink: #f472b6;
+    --orange: #fb923c;
+    --yellow: #facc15;
+    --red: #f87171;
+    --cyan: #22d3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 32px;
+    min-width: 1600px;
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; font-size: 11.5px; }
+  .dim { color: var(--text-dim); }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; color: var(--cyan); font-size: 11px; }
+
+  /* Language toggle */
+  .lang-toggle {
+    position: fixed; top: 20px; right: 24px; z-index: 100;
+    display: flex; gap: 2px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px;
+  }
+  .lang-toggle button {
+    padding: 5px 12px; background: transparent; border: none;
+    color: var(--text-dim); font-family: inherit; font-size: 12px;
+    font-weight: 600; cursor: pointer; border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .lang-toggle button:hover { color: var(--text); }
+  .lang-toggle button.active {
+    background: var(--purple); color: var(--bg);
+  }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 28px; }
+  .header h1 {
+    font-size: 34px; font-weight: 700; letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--red), var(--purple), var(--blue));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 8px;
+  }
+  .header .subtitle { color: var(--text-dim); font-size: 14px; }
+  .header .subtitle .dot { color: var(--purple); margin: 0 6px; }
+  .header .badge {
+    display: inline-block; margin-top: 10px; padding: 4px 12px;
+    background: rgba(250,204,21,0.1); border: 1px solid var(--yellow);
+    color: var(--yellow); font-weight: 600; font-size: 12px; border-radius: 4px;
+  }
+
+  /* Panel */
+  .panel {
+    border: 1.5px solid var(--border); border-radius: 8px;
+    background: var(--bg-panel); padding: 16px; margin-bottom: 20px;
+    position: relative;
+  }
+  .panel-label {
+    position: absolute; top: -9px; left: 16px;
+    background: var(--bg); padding: 0 8px; font-size: 10px;
+    font-weight: 700; letter-spacing: 1.2px;
+  }
+  .panel.purple { border-color: var(--purple); }
+  .panel.purple .panel-label { color: var(--purple); }
+  .panel.blue { border-color: var(--blue); }
+  .panel.blue .panel-label { color: var(--blue); }
+  .panel.green { border-color: var(--green); }
+  .panel.green .panel-label { color: var(--green); }
+  .panel.red { border-color: var(--red); }
+  .panel.red .panel-label { color: var(--red); }
+  .panel.pink { border-color: var(--pink); }
+  .panel.pink .panel-label { color: var(--pink); }
+  .panel.orange { border-color: var(--orange); }
+  .panel.orange .panel-label { color: var(--orange); }
+  .panel.yellow { border-color: var(--yellow); }
+  .panel.yellow .panel-label { color: var(--yellow); }
+
+  /* Setup row */
+  .setup-row {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+    margin-bottom: 20px;
+  }
+  .setup-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px;
+  }
+  .setup-card .key { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .setup-card .val { font-size: 13px; font-weight: 600; margin-top: 3px; color: var(--cyan); }
+  .setup-card .desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Two-column arena */
+  .arena {
+    display: grid; grid-template-columns: 1fr 200px 1fr; gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* Call boxes */
+  .call-box {
+    border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+    background: var(--bg-card); margin-bottom: 10px; position: relative;
+  }
+  .call-box.attacker { border-left: 3px solid var(--red); }
+  .call-box.defender { border-left: 3px solid var(--blue); }
+  .call-box.free { border-left: 3px solid var(--green); background: rgba(74, 222, 128, 0.05); }
+  .call-box.highlight { box-shadow: 0 0 0 1px var(--yellow); }
+  .call-box .call-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .call-box .call-title { font-weight: 600; font-size: 12.5px; }
+  .call-box .call-tag {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px;
+    padding: 2px 6px; border-radius: 3px;
+  }
+  .tag-llm { background: rgba(251, 146, 60, 0.15); color: var(--orange); border: 1px solid var(--orange); }
+  .tag-free { background: rgba(74, 222, 128, 0.15); color: var(--green); border: 1px solid var(--green); }
+  .tag-new { background: rgba(250, 204, 21, 0.15); color: var(--yellow); border: 1px solid var(--yellow); }
+  .call-box .call-body { font-size: 11.5px; color: var(--text-dim); }
+
+  /* Arena center column */
+  .arena-center {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 10px;
+  }
+  .arena-center .arena-title {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--yellow);
+    font-weight: 700; margin-bottom: 14px;
+  }
+  .round-pill {
+    width: 100%; text-align: center;
+    padding: 6px 10px; margin-bottom: 6px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; font-size: 11px; font-family: "SF Mono", monospace;
+  }
+  .round-pill.active { border-color: var(--yellow); color: var(--yellow); }
+  .arrow-lr {
+    font-size: 20px; line-height: 1;
+    background: linear-gradient(90deg, var(--red), var(--blue));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-align: center; margin: 6px 0;
+  }
+
+  /* Memory strip */
+  .memory-strip {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .mem-chip {
+    padding: 3px 8px; background: rgba(167, 139, 250, 0.1);
+    border: 1px solid var(--purple); border-radius: 12px;
+    font-size: 10.5px; color: var(--purple); font-family: "SF Mono", monospace;
+  }
+  .mem-chip.blue { background: rgba(96, 165, 250, 0.1); border-color: var(--blue); color: var(--blue); }
+  .mem-chip.red { background: rgba(248, 113, 113, 0.1); border-color: var(--red); color: var(--red); }
+
+  /* Innovations */
+  .innov-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .innov-card {
+    padding: 14px; background: var(--bg-card); border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .innov-card .idx {
+    display: inline-block; width: 24px; height: 24px; border-radius: 50%;
+    text-align: center; line-height: 24px; font-weight: 700; font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .innov-card.c1 { border-top: 3px solid var(--red); }
+  .innov-card.c1 .idx { background: var(--red); color: var(--bg); }
+  .innov-card.c2 { border-top: 3px solid var(--orange); }
+  .innov-card.c2 .idx { background: var(--orange); color: var(--bg); }
+  .innov-card.c3 { border-top: 3px solid var(--blue); }
+  .innov-card.c3 .idx { background: var(--blue); color: var(--bg); }
+  .innov-card.c4 { border-top: 3px solid var(--green); }
+  .innov-card.c4 .idx { background: var(--green); color: var(--bg); }
+  .innov-card .innov-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .innov-card .innov-body { color: var(--text-dim); font-size: 11.5px; }
+  .innov-card .innov-formula {
+    margin-top: 8px; padding: 6px 8px; background: rgba(0,0,0,0.3);
+    border-radius: 4px; font-family: "SF Mono", monospace;
+    font-size: 11px; color: var(--cyan);
+  }
+
+  /* Co-evolution matrix */
+  .matrix {
+    display: grid; grid-template-columns: 1fr 24px 1fr; gap: 4px 12px;
+    margin-top: 8px;
+  }
+  .matrix .attack { text-align: right; color: var(--red); font-size: 12px; padding: 6px 10px; background: rgba(248,113,113,0.06); border-radius: 4px; }
+  .matrix .counter { text-align: left; color: var(--blue); font-size: 12px; padding: 6px 10px; background: rgba(96,165,250,0.06); border-radius: 4px; }
+  .matrix .arrow-cell { text-align: center; color: var(--text-dim); line-height: 2.6; }
+
+  /* 6-layer */
+  .layer-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px; }
+  .layer-cell {
+    padding: 8px; background: rgba(74, 222, 128, 0.05);
+    border: 1px solid var(--green); border-radius: 4px;
+    text-align: center; font-size: 11px;
+  }
+  .layer-cell .layer-num { color: var(--green); font-weight: 700; font-family: "SF Mono", monospace; }
+  .layer-cell .layer-name { margin-top: 2px; font-weight: 600; }
+  .layer-cell .layer-desc { margin-top: 2px; color: var(--text-dim); font-size: 10px; }
+
+  /* Results */
+  .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 8px; }
+  .result-stat {
+    padding: 12px; text-align: center; background: var(--bg-card);
+    border-radius: 6px; border: 1px solid var(--border);
+  }
+  .result-stat .num {
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(135deg, var(--yellow), var(--orange));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .result-stat .label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; }
+
+  /* Section head */
+  .section-head {
+    font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-head .line { flex: 1; height: 1px; background: var(--border); }
+
+  .flex-col { display: flex; flex-direction: column; }
+  .row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .footer-note {
+    text-align: center; color: var(--text-dim); font-size: 10.5px;
+    margin-top: 18px; font-family: "SF Mono", monospace;
+  }
+  .channel-title {
+    font-size: 11px; color: var(--text-dim); letter-spacing: 1px;
+    margin-bottom: 6px; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button id="btn-zh" onclick="setLang('zh')">中</button>
+  <button id="btn-en" onclick="setLang('en')">EN</button>
+</div>
+
+<div class="header">
+  <h1 data-i18n="title"></h1>
+  <div class="subtitle" data-i18n="subtitle"></div>
+  <div class="badge" data-i18n="badge"></div>
+</div>
+
+<!-- SETUP ROW -->
+<div class="setup-row">
+  <div class="setup-card">
+    <div class="key" data-i18n="setup.model.key"></div>
+    <div class="val">gpt-oss-20b</div>
+    <div class="desc" data-i18n="setup.model.desc"></div>
+  </div>
+  <div class="setup-card">
+    <div class="key" data-i18n="setup.scenarios.key"></div>
+    <div class="val">21</div>
+    <div class="desc" data-i18n="setup.scenarios.desc"></div>
+  </div>
+  <div class="setup-card">
+    <div class="key" data-i18n="setup.rounds.key"></div>
+    <div class="val">7</div>
+    <div class="desc" data-i18n="setup.rounds.desc"></div>
+  </div>
+  <div class="setup-card">
+    <div class="key" data-i18n="setup.budget.key"></div>
+    <div class="val" data-i18n="setup.budget.val"></div>
+    <div class="desc" data-i18n="setup.budget.desc"></div>
+  </div>
+  <div class="setup-card">
+    <div class="key" data-i18n="setup.iter.key"></div>
+    <div class="val" data-i18n="setup.iter.val"></div>
+    <div class="desc" data-i18n="setup.iter.desc"></div>
+  </div>
+</div>
+
+<!-- MAIN ARENA -->
+<div class="panel yellow">
+  <div class="panel-label" data-i18n="arena.label"></div>
+  <div class="arena">
+
+    <!-- ATTACKER -->
+    <div class="flex-col">
+      <div class="section-head" style="color: var(--red);">
+        <span data-i18n="att.head"></span>
+        <span class="line" style="background: var(--red); opacity: 0.3;"></span>
+      </div>
+
+      <div class="call-box free">
+        <div class="call-head">
+          <span class="call-title" data-i18n="att.cls.title"></span>
+          <span class="call-tag tag-free">0 LLM</span>
+        </div>
+        <div class="call-body" data-i18n="att.cls.body"></div>
+      </div>
+
+      <div class="call-box attacker">
+        <div class="call-head">
+          <span class="call-title" data-i18n="att.c1.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.call1"></span>
+        </div>
+        <div class="call-body" data-i18n="att.c1.body"></div>
+      </div>
+
+      <div class="call-box attacker highlight">
+        <div class="call-head">
+          <span class="call-title" data-i18n="att.c2.title"></span>
+          <span class="call-tag tag-new" data-i18n="tag.sincev23"></span>
+        </div>
+        <div class="call-body" data-i18n="att.c2.body"></div>
+      </div>
+
+      <div class="call-box attacker">
+        <div class="call-head">
+          <span class="call-title" data-i18n="att.c3.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.call3"></span>
+        </div>
+        <div class="call-body" data-i18n="att.c3.body"></div>
+      </div>
+
+      <div class="call-box attacker">
+        <div class="call-head">
+          <span class="call-title" data-i18n="att.c4.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.cond"></span>
+        </div>
+        <div class="call-body" data-i18n="att.c4.body"></div>
+      </div>
+
+      <div style="margin-top: 8px;">
+        <div class="dim" style="font-size: 10px; letter-spacing: 1px; margin-bottom: 4px;" data-i18n="att.mem.label"></div>
+        <div class="memory-strip">
+          <span class="mem-chip red">battle_history</span>
+          <span class="mem-chip red">foa_state.best_fly</span>
+          <span class="mem-chip red">DefenderModel</span>
+          <span class="mem-chip red">_ccbos_failures</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARENA CENTER -->
+    <div class="arena-center">
+      <div class="arena-title" data-i18n="arena.loop"></div>
+      <div class="round-pill active" data-i18n="round.1"></div>
+      <div class="round-pill" data-i18n="round.2"></div>
+      <div class="round-pill" data-i18n="round.3"></div>
+      <div class="round-pill" data-i18n="round.4"></div>
+      <div class="round-pill" data-i18n="round.5"></div>
+      <div class="round-pill" data-i18n="round.6"></div>
+      <div class="round-pill" data-i18n="round.7"></div>
+      <div style="margin-top: 14px; text-align: center;">
+        <div class="arrow-lr">◀━━━▶</div>
+        <div style="font-size: 10px; color: var(--text-dim); letter-spacing: 0.8px;" data-i18n="arena.exchange"></div>
+      </div>
+    </div>
+
+    <!-- DEFENDER -->
+    <div class="flex-col">
+      <div class="section-head" style="color: var(--blue);">
+        <span data-i18n="def.head"></span>
+        <span class="line" style="background: var(--blue); opacity: 0.3;"></span>
+      </div>
+
+      <div class="call-box free">
+        <div class="call-head">
+          <span class="call-title" data-i18n="def.pre.title"></span>
+          <span class="call-tag tag-free">0 LLM</span>
+        </div>
+        <div class="call-body" data-i18n="def.pre.body"></div>
+      </div>
+
+      <div class="call-box defender">
+        <div class="call-head">
+          <span class="call-title" data-i18n="def.c1.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.call1"></span>
+        </div>
+        <div class="call-body" data-i18n="def.c1.body"></div>
+      </div>
+
+      <div class="call-box defender">
+        <div class="call-head">
+          <span class="call-title" data-i18n="def.c2.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.call2"></span>
+        </div>
+        <div class="call-body" data-i18n="def.c2.body"></div>
+      </div>
+
+      <div class="call-box defender highlight">
+        <div class="call-head">
+          <span class="call-title" data-i18n="def.c3.title"></span>
+          <span class="call-tag tag-new" data-i18n="tag.sincev24"></span>
+        </div>
+        <div class="call-body" data-i18n="def.c3.body"></div>
+      </div>
+
+      <div class="call-box defender">
+        <div class="call-head">
+          <span class="call-title" data-i18n="def.c4.title"></span>
+          <span class="call-tag tag-llm" data-i18n="tag.cond"></span>
+        </div>
+        <div class="call-body" data-i18n="def.c4.body"></div>
+      </div>
+
+      <div style="margin-top: 8px;">
+        <div class="dim" style="font-size: 10px; letter-spacing: 1px; margin-bottom: 4px;" data-i18n="def.harden.label"></div>
+        <div class="memory-strip">
+          <span class="mem-chip blue" data-i18n="def.harden.c1"></span>
+          <span class="mem-chip blue" data-i18n="def.harden.c2"></span>
+          <span class="mem-chip blue" data-i18n="def.harden.c3"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 6-LAYER -->
+<div class="panel green">
+  <div class="panel-label" data-i18n="layer.label"></div>
+  <div class="layer-bar">
+    <div class="layer-cell">
+      <div class="layer-num">①</div>
+      <div class="layer-name" data-i18n="layer.1.name"></div>
+      <div class="layer-desc" data-i18n="layer.1.desc"></div>
+    </div>
+    <div class="layer-cell">
+      <div class="layer-num">②</div>
+      <div class="layer-name" data-i18n="layer.2.name"></div>
+      <div class="layer-desc" data-i18n="layer.2.desc"></div>
+    </div>
+    <div class="layer-cell">
+      <div class="layer-num">③</div>
+      <div class="layer-name" data-i18n="layer.3.name"></div>
+      <div class="layer-desc" data-i18n="layer.3.desc"></div>
+    </div>
+    <div class="layer-cell">
+      <div class="layer-num">④</div>
+      <div class="layer-name" data-i18n="layer.4.name"></div>
+      <div class="layer-desc" data-i18n="layer.4.desc"></div>
+    </div>
+    <div class="layer-cell">
+      <div class="layer-num">⑤</div>
+      <div class="layer-name" data-i18n="layer.5.name"></div>
+      <div class="layer-desc" data-i18n="layer.5.desc"></div>
+    </div>
+    <div class="layer-cell">
+      <div class="layer-num">⑥</div>
+      <div class="layer-name" data-i18n="layer.6.name"></div>
+      <div class="layer-desc" data-i18n="layer.6.desc"></div>
+    </div>
+  </div>
+</div>
+
+<!-- INNOVATIONS -->
+<div class="panel purple">
+  <div class="panel-label" data-i18n="innov.label"></div>
+  <div class="innov-grid">
+    <div class="innov-card c1">
+      <div class="idx">1</div>
+      <div class="innov-title" data-i18n="innov.1.title"></div>
+      <div class="innov-body" data-i18n="innov.1.body"></div>
+      <div class="innov-formula">fly<sub>t+1</sub> = best ⊕ smell_search(σ) ⊕ Cauchy(α)</div>
+    </div>
+    <div class="innov-card c2">
+      <div class="idx">2</div>
+      <div class="innov-title" data-i18n="innov.2.title"></div>
+      <div class="innov-body" data-i18n="innov.2.body"></div>
+      <div class="innov-formula">cat = argmax<sub>c</sub> cos(tfidf(s), μ<sub>c</sub>)</div>
+    </div>
+    <div class="innov-card c3">
+      <div class="idx">3</div>
+      <div class="innov-title" data-i18n="innov.3.title"></div>
+      <div class="innov-body" data-i18n="innov.3.body"></div>
+      <div class="innov-formula">payload<sub>t+1</sub> = Gen(plan, sim(plan) → 7-signals)</div>
+    </div>
+    <div class="innov-card c4">
+      <div class="idx">4</div>
+      <div class="innov-title" data-i18n="innov.4.title"></div>
+      <div class="innov-body" data-i18n="innov.4.body"></div>
+      <div class="innov-formula" data-i18n="innov.4.formula"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CO-EVOLUTION -->
+<div class="panel orange">
+  <div class="panel-label" data-i18n="coev.label"></div>
+  <div class="row-split" style="gap: 32px;">
+    <div>
+      <div class="channel-title" data-i18n="coev.ch1.title"></div>
+      <div class="matrix">
+        <div class="attack" data-i18n="coev.ch1.a1"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch1.d1"></div>
+
+        <div class="attack" data-i18n="coev.ch1.a2"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch1.d2"></div>
+
+        <div class="attack" data-i18n="coev.ch1.a3"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch1.d3"></div>
+
+        <div class="attack" data-i18n="coev.ch1.a4"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch1.d4"></div>
+      </div>
+    </div>
+    <div>
+      <div class="channel-title" data-i18n="coev.ch2.title"></div>
+      <div class="matrix">
+        <div class="attack" data-i18n="coev.ch2.a1"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch2.d1"></div>
+
+        <div class="attack" data-i18n="coev.ch2.a2"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch2.d2"></div>
+
+        <div class="attack" data-i18n="coev.ch2.a3"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch2.d3"></div>
+
+        <div class="attack" data-i18n="coev.ch2.a4"></div>
+        <div class="arrow-cell">↔</div>
+        <div class="counter" data-i18n="coev.ch2.d4"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="panel pink">
+  <div class="panel-label" data-i18n="res.label"></div>
+  <div class="results-grid">
+    <div class="result-stat">
+      <div class="num">#1</div>
+      <div class="label" data-i18n="res.1"></div>
+    </div>
+    <div class="result-stat">
+      <div class="num">55</div>
+      <div class="label" data-i18n="res.2"></div>
+    </div>
+    <div class="result-stat">
+      <div class="num">21</div>
+      <div class="label" data-i18n="res.3"></div>
+    </div>
+    <div class="result-stat">
+      <div class="num">~100×</div>
+      <div class="label" data-i18n="res.4"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note" data-i18n="footer"></div>
+
+<script>
+const T = {
+  'title': {
+    en: 'Quiet Chaos — AgentBeats Security Arena Architecture',
+    zh: 'Quiet Chaos — AgentBeats 安全竞技场架构'
+  },
+  'subtitle': {
+    en: 'Adaptive AI Red-Teaming &amp; Multi-Layer Defense <span class="dot">·</span> Attacker v23 + Defender v32 <span class="dot">·</span> Lambda × Berkeley AgentBeats Phase 2 <span class="dot">·</span> gpt-oss-20b',
+    zh: '自适应 AI 红队 & 多层防御 <span class="dot">·</span> 攻击方 v23 + 防御方 v32 <span class="dot">·</span> Lambda × Berkeley AgentBeats 第二阶段 <span class="dot">·</span> gpt-oss-20b'
+  },
+  'badge': {
+    en: '🏆 1st Place · Private Held-out Leaderboard',
+    zh: '🏆 冠军 · 私有测试集排行榜'
+  },
+
+  'setup.model.key':      { en: 'MODEL',              zh: '模型' },
+  'setup.model.desc':     { en: 'single 80GB H100',   zh: '单张 80GB H100' },
+  'setup.scenarios.key':  { en: 'EVAL SCENARIOS',       zh: '评测场景' },
+  'setup.scenarios.desc': { en: '11 public + 10 private held-out', zh: '11 公开 + 10 私有测试' },
+  'setup.rounds.key':     { en: 'ROUNDS / BATTLE',    zh: '每场回合' },
+  'setup.rounds.desc':    { en: 'sequential adaptation', zh: '序列化自适应' },
+  'setup.budget.key':     { en: 'CALL BUDGET',        zh: '调用预算' },
+  'setup.budget.val':     { en: '4 LLM / side',       zh: '单方 4 次 LLM' },
+  'setup.budget.desc':    { en: '4-min total wall time', zh: '总墙钟 4 分钟' },
+  'setup.iter.key':       { en: 'ITERATIONS SHIPPED', zh: '已提交迭代' },
+  'setup.iter.val':       { en: '55 versions',        zh: '55 个版本' },
+  'setup.iter.desc':      { en: 'attacker v23 + defender v32', zh: '攻击方 v23 + 防御方 v32' },
+
+  'arena.label':   { en: 'BATTLE ORCHESTRATION', zh: '对战编排' },
+  'arena.loop':    { en: 'ARENA LOOP',           zh: '对战循环' },
+  'arena.exchange':{ en: 'payload / response exchange per round', zh: '每轮交换 payload / 响应' },
+
+  'round.1': { en: 'round 1', zh: '第 1 回合' },
+  'round.2': { en: 'round 2', zh: '第 2 回合' },
+  'round.3': { en: 'round 3', zh: '第 3 回合' },
+  'round.4': { en: 'round 4', zh: '第 4 回合' },
+  'round.5': { en: 'round 5', zh: '第 5 回合' },
+  'round.6': { en: 'round 6', zh: '第 6 回合' },
+  'round.7': { en: 'round 7', zh: '第 7 回合' },
+
+  'tag.call1': { en: 'LLM Call 1', zh: 'LLM 调用 1' },
+  'tag.call2': { en: 'LLM Call 2', zh: 'LLM 调用 2' },
+  'tag.call3': { en: 'LLM Call 3', zh: 'LLM 调用 3' },
+  'tag.cond':  { en: 'conditional', zh: '条件触发' },
+  'tag.sincev23': { en: 'since v23 ⭐', zh: 'v23 起 ⭐' },
+  'tag.sincev24': { en: 'since v24 ⭐', zh: 'v24 起 ⭐' },
+
+  // ATTACKER
+  'att.head':      { en: '🔴 ATTACKER v23', zh: '🔴 攻击方 v23' },
+  'att.cls.title': { en: 'Scenario Classifier', zh: '场景分类器' },
+  'att.cls.body': {
+    en: '<code>TF-IDF + KNN</code> · pure Python · 424 scenarios → 6 categories<br><span class="dim">jailbreak · injection · pii_leak · prompt_extract · insecure_out · supply_chain</span>',
+    zh: '<code>TF-IDF + KNN</code> · 纯 Python · 424 场景 → 6 类<br><span class="dim">越狱 · 注入 · PII泄漏 · Prompt提取 · 不安全输出 · 供应链</span>'
+  },
+  'att.c1.title': { en: '① Planner', zh: '① 规划器' },
+  'att.c1.body': {
+    en: 'pick <code>primary + secondary</code> strategy<br>reads <code>battle_history</code> + <code>DefenderModel</code><br>fingerprint-aware routing (hard_refusal → CC-BOS, etc.)',
+    zh: '选择 <code>primary + secondary</code> 策略<br>读取 <code>battle_history</code> + <code>DefenderModel</code><br>基于防御指纹的路由 (hard_refusal → CC-BOS 等)'
+  },
+  'att.c2.title': { en: '② Defender Simulator', zh: '② 防御方模拟器' },
+  'att.c2.body': {
+    en: 'PAIR-style rollout → extract <b>7 signals</b>:<br><span class="dim">compliance · trigger words · filter rules · suggested pivots</span><br><span class="dim">engaged/deflected topics · leaked fragments · refusal phrases</span>',
+    zh: 'PAIR 风格推演 → 提取 <b>7 种信号</b>:<br><span class="dim">合规度 · 触发词 · 过滤规则 · 转向建议</span><br><span class="dim">参与/偏离话题 · 泄漏片段 · 拒绝短语</span>'
+  },
+  'att.c3.title': { en: '③ Generator', zh: '③ 生成器' },
+  'att.c3.body': {
+    en: '<b>CC-BOS engine</b> · 8-dim FOA · cross-round optimization<br>template fallback when LLM refuses · 6 attack primitives',
+    zh: '<b>CC-BOS 引擎</b> · 8维 FOA · 跨轮次优化<br>LLM 拒绝时模板回退 · 6 种攻击原语'
+  },
+  'att.c4.title': { en: '④ Judge', zh: '④ 评判器' },
+  'att.c4.body': {
+    en: 'score attempt · update <code>DefenderModel</code><br>track <code>best_family</code> / <code>is_defense_stable</code>',
+    zh: '打分本轮攻击 · 更新 <code>DefenderModel</code><br>追踪 <code>best_family</code> / <code>is_defense_stable</code>'
+  },
+  'att.mem.label': { en: 'CROSS-ROUND MEMORY', zh: '跨轮次记忆' },
+
+  // DEFENDER
+  'def.head':      { en: '🔵 DEFENDER v32', zh: '🔵 防御方 v32' },
+  'def.pre.title': { en: 'Deterministic Preprocess', zh: '确定性预处理' },
+  'def.pre.body': {
+    en: 'Unicode normalize · strip <code>\\u200b</code> <code>[INST]</code><br>sensitive pattern extract (SSN · API key · UUID · hash)<br>structured data detection → route to INJECTION / DIRECT',
+    zh: 'Unicode 归一化 · 清除 <code>\\u200b</code> <code>[INST]</code><br>敏感 pattern 提取 (SSN · API key · UUID · hash)<br>结构化数据检测 → 路由到 INJECTION / DIRECT'
+  },
+  'def.c1.title': { en: '① Intent Classifier', zh: '① 意图分类器' },
+  'def.c1.body': {
+    en: 'INJECTION: identify <b>tainted items</b> (source vs target)<br>DIRECT: classify <code>SAFE / UNSAFE</code><br><span class="dim">+ deterministic cross-ref check (0 LLM)</span>',
+    zh: 'INJECTION: 识别 <b>受污染项</b> (区分源头与目标)<br>DIRECT: 分类 <code>SAFE / UNSAFE</code><br><span class="dim">+ 确定性交叉引用检查 (0 LLM)</span>'
+  },
+  'def.c2.title': { en: '② Main Generation', zh: '② 主生成' },
+  'def.c2.body': {
+    en: 'Spotlight wrapping <code>&lt;&lt;&lt;DATA_XXX&gt;&gt;&gt;</code> (v25)<br>+ Fake Completion preamble (v25, ACL 2025)<br>+ poisoning alert · security addon',
+    zh: 'Spotlight 包装 <code>&lt;&lt;&lt;DATA_XXX&gt;&gt;&gt;</code> (v25)<br>+ Fake Completion 前置 (v25, ACL 2025)<br>+ 投毒警报 · 安全附加说明'
+  },
+  'def.c3.title': { en: '③ Always-Audit', zh: '③ 全量审计' },
+  'def.c3.body': {
+    en: 'compliance audit · procedural-teaching check<br>catches decomposition / FITD bypass<br>returns <code>COMPLIANT / VIOLATION:&lt;rule&gt;</code>',
+    zh: '合规审计 · 教程式泄漏检查<br>捕获分解式 / FITD 绕过<br>返回 <code>COMPLIANT / VIOLATION:&lt;规则&gt;</code>'
+  },
+  'def.c4.title': { en: '④ Regenerate', zh: '④ 重新生成' },
+  'def.c4.body': {
+    en: 'if VIOLATION: re-gen with <code>CRITICAL COMPLIANCE OVERRIDE</code><br>if FIXED (injection path): force-fix ranking JSON',
+    zh: '若 VIOLATION: 追加 <code>CRITICAL COMPLIANCE OVERRIDE</code> 重生成<br>若 FIXED (注入路径): 强制修正排名 JSON'
+  },
+  'def.harden.label': { en: 'v32 COMPLIANCE HARDENING', zh: 'v32 合规硬化' },
+  'def.harden.c1':    { en: '55s per-call timeout', zh: '每次调用 55 秒超时' },
+  'def.harden.c2':    { en: '4-min budget',         zh: '4 分钟总预算' },
+  'def.harden.c3':    { en: 'resource-limit safe',  zh: '资源限制合规' },
+
+  // 6-LAYER
+  'layer.label': { en: '6-LAYER OUTPUT SANITIZATION · 0 LLM · POST-DEFENDER', zh: '6 层输出净化 · 0 LLM · 防御后处理' },
+  'layer.1.name': { en: 'XSS Block',        zh: 'XSS 阻断' },
+  'layer.1.desc': { en: '&lt;script&gt; iframe on*= form', zh: '&lt;script&gt; iframe on*= form' },
+  'layer.2.name': { en: 'Sensitive Redact', zh: '敏感信息脱敏' },
+  'layer.2.desc': { en: '4 variants: exact/spaced/hyphen/sep', zh: '4 种变体: 精确/空格/连字符/分隔' },
+  'layer.3.name': { en: 'Encoded Leak',     zh: '编码泄漏检测' },
+  'layer.3.desc': { en: '7 encodings (B64 · hex · ROT13 · URL …)', zh: '7 种编码 (B64 · hex · ROT13 · URL …)' },
+  'layer.4.name': { en: 'Prompt Leak',      zh: 'Prompt 泄漏' },
+  'layer.4.desc': { en: '5-word slide (Das 2025, 99%→0.16%)', zh: '5-word 滑窗 (Das 2025, 99%→0.16%)' },
+  'layer.5.name': { en: 'Code Block',       zh: '代码块净化' },
+  'layer.5.desc': { en: 'fence-level pattern scrub', zh: '围栏级模式清理' },
+  'layer.6.name': { en: 'Data Poisoning',   zh: '数据投毒' },
+  'layer.6.desc': { en: 'structural + 120-char semantic (v26)', zh: '结构化 + 120 字符语义 (v26)' },
+
+  // INNOVATIONS
+  'innov.label': { en: 'KEY TECHNICAL INNOVATIONS · PAPER-WORTHY', zh: '核心技术创新 · 论文可发表' },
+  'innov.1.title': { en: 'CC-BOS 8D Fruit-Fly Optimization', zh: 'CC-BOS 8维果蝇优化' },
+  'innov.1.body': {
+    en: 'Classical-Chinese bypass with 8-dim option space (role · guidance · mechanism · metaphor · expression · knowledge · context · trigger). FOA <b>amortized across 7 rounds</b>, not offline batch.',
+    zh: '古汉语绕过,8维选项空间 (角色 · 引导 · 机制 · 隐喻 · 表达 · 知识 · 语境 · 触发词)。FOA <b>分摊到 7 轮游戏</b>,而非离线批处理。'
+  },
+  'innov.2.title': { en: 'Scenario-Agnostic Classification', zh: '场景无关分类' },
+  'innov.2.body': {
+    en: 'Zero-dependency TF-IDF + KNN maps 424 scenarios → 6 attack categories. Drives strategy pool selection <b>without per-scenario tuning</b>.',
+    zh: '零依赖 TF-IDF + KNN 将 424 场景映射到 6 个攻击类别。驱动策略池选择,<b>无需场景特定调优</b>。'
+  },
+  'innov.3.title': { en: 'Defender Simulator Feedback Loop', zh: '防御方模拟反馈环' },
+  'innov.3.body': {
+    en: 'PAIR-style rollout extracts 7 structured signals from a simulated defender response → directly drives next-call payload refinement.',
+    zh: 'PAIR 风格推演从模拟防御方响应中提取 7 种结构化信号 → 直接驱动下一次调用的 payload 精修。'
+  },
+  'innov.4.title': { en: 'Determinism-First Defense', zh: '确定性优先防御' },
+  'innov.4.body': {
+    en: '6-layer regex sanitization + 1-call LLM audit. Spotlight (MS 2024) + Fake Completion (ACL 2025) reduce ASR to &lt;4%.',
+    zh: '6 层正则净化 + 1 次 LLM 审计。Spotlight (MS 2024) + Fake Completion (ACL 2025) 将 ASR 降至 &lt;4%。'
+  },
+  'innov.4.formula': {
+    en: 'ASR: 99% → 0.16% (prompt leak · Das 2025)',
+    zh: 'ASR: 99% → 0.16% (prompt 泄漏 · Das 2025)'
+  },
+
+  // CO-EVOLUTION
+  'coev.label': { en: 'CO-EVOLUTION MATRIX · ATTACK ↔ DEFENSE COUPLING', zh: '协同进化矩阵 · 攻防耦合' },
+  'coev.ch1.title': { en: 'Direct Channel (refusal / extraction)', zh: '直接通道 (拒绝 / 信息提取)' },
+  'coev.ch1.a1': { en: 'Hard refusal "I cannot…"', zh: '硬拒绝 "我不能…"' },
+  'coev.ch1.d1': { en: 'CC-BOS classical Chinese', zh: 'CC-BOS 古汉语' },
+  'coev.ch1.a2': { en: 'Keyword filter', zh: '关键词过滤' },
+  'coev.ch1.d2': { en: 'FOA 8-dim novel phrasing', zh: 'FOA 8维新颖措辞' },
+  'coev.ch1.a3': { en: 'Intent classifier SAFE/UNSAFE', zh: '意图分类器 SAFE/UNSAFE' },
+  'coev.ch1.d3': { en: 'DrAttack decomposition / FITD', zh: 'DrAttack 分解式 / FITD' },
+  'coev.ch1.a4': { en: 'Prompt-leak 5-word slide', zh: 'Prompt 泄漏 5-word 滑窗' },
+  'coev.ch1.d4': { en: 'ROT13 / reverse / base64 obfuscation', zh: 'ROT13 / 反转 / base64 混淆' },
+
+  'coev.ch2.title': { en: 'Injection Channel (tainted data)', zh: '注入通道 (污染数据)' },
+  'coev.ch2.a1': { en: 'Spotlight delimiters', zh: 'Spotlight 分隔符' },
+  'coev.ch2.d1': { en: 'Semantic bridge in-delimiter', zh: '分隔符内语义桥接' },
+  'coev.ch2.a2': { en: 'Cross-ref check + force-fix', zh: '交叉引用 + 强制修正' },
+  'coev.ch2.d2': { en: '"preliminary assessment" authority', zh: '"初步评估" 权威伪装' },
+  'coev.ch2.a3': { en: 'Data-poisoning 120-char proximity', zh: '投毒检测 120字符邻近' },
+  'coev.ch2.d3': { en: 'Distant-proximity + passive voice', zh: '远距离布局 + 被动语态' },
+  'coev.ch2.a4': { en: 'Fake Completion preamble', zh: 'Fake Completion 前置' },
+  'coev.ch2.d4': { en: 'Format-lock (CSV/JSON structure)', zh: '格式锁 (CSV/JSON 结构)' },
+
+  // RESULTS
+  'res.label': { en: 'RESULTS & SIGNIFICANCE', zh: '结果与意义' },
+  'res.1': { en: 'Private leaderboard rank',   zh: '私榜排名' },
+  'res.2': { en: 'Submission iterations',       zh: '提交迭代版本' },
+  'res.3': { en: 'Eval scenarios (public + private)', zh: '评测场景 (公开 + 私有)' },
+  'res.4': { en: 'API cost vs. GCG baseline',   zh: 'API 成本 vs. GCG 基线' },
+
+  'footer': {
+    en: 'github.com/LambdaLabsML/agentbeats-lambda · attacker: agents/attacker/agent.py · defender: agents/defender/agent.py · 2026',
+    zh: 'github.com/LambdaLabsML/agentbeats-lambda · 攻击方: agents/attacker/agent.py · 防御方: agents/defender/agent.py · 2026'
+  }
+};
+
+function setLang(lang) {
+  document.documentElement.setAttribute('lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[key] && T[key][lang] !== undefined) {
+      el.innerHTML = T[key][lang];
+    }
+  });
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-zh').classList.toggle('active', lang === 'zh');
+  try { localStorage.setItem('qc_lang', lang); } catch(e) {}
+}
+
+const saved = (function(){ try { return localStorage.getItem('qc_lang'); } catch(e) { return null; }})();
+setLang(saved || 'zh');
+</script>
+
+</body>
+</html>
