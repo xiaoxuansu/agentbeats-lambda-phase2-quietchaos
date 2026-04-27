@@ -78,4 +78,4 @@ This pilot only fills `Attacker_quietchaos × Defender_siqi`. We can't conclude 
 
 - Lambda instance live since ~01:44 local, est. cost so far ~$0.75 (1 hour at $0.75/h).
 - Watchdog will hard-terminate at ~05:40 local if batch hasn't ended (~150 min from launch). 
-- Lambda API key was exposed in conversation; needs revocation on Lambda dashboard once experiments wrap.
+- Lambda API key used for the watchdog has been revoked on the Lambda dashboard. Future runs use a freshly generated per-session key.
