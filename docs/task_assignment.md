@@ -56,8 +56,7 @@ Person 5 carries the heaviest cell, but it's also the one that contributes the m
 2. **Result directory naming**: `results/phaseB_<cell-name>/<scenario>_repN/`. Example: `results/phaseB_Attacker_siqi_vs_Defender_quietchaos/portfolioiq_rep1/`.
 3. **Per-cell `RUN_INFO.md`**: at the root of each cell directory, drop a small markdown file noting the model, vLLM args, max-model-len, attacker commit hash, defender commit hash. This is what makes the paper reproducible.
 4. **Execution order**: Person 1 first (the helpfulness check shapes the paper's framing). Person 2 and Person 3 in parallel (low coordination cost). Person 4 and Person 5 after, since they benefit from seeing Person 2 and 3's findings before deciding how deep to go.
-5. **Private scenarios**: Person 1 (or whoever has the contact) should email the host to ask whether the 5 private scenarios from the leaderboard can be released for reproducibility. If no, the team designs 5 new "hard" scenarios collectively before Person 5 starts the scenario expansion.
-6. **API key hygiene**: every person uses their own Lambda API key, never shares it in chat or commits, and revokes it after their cell finishes.
+5. **API key hygiene**: every person uses their own Lambda API key, never shares it in chat or commits, and revokes it after their cell finishes.
 
 ---
 

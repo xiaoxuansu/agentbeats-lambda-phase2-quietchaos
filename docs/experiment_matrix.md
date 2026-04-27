@@ -10,7 +10,7 @@ This document defines the full experiment matrix needed for a publishable paper 
 |---|---|---|
 | **Attacker team** | Attacker_quietchaos (Quiet Chaos v23) / Attacker_siqi (Other Team) | Test our attacker is portable, not just over-fit to our defender |
 | **Defender team** | Defender_quietchaos (Quiet Chaos v23) / Defender_siqi (Other Team, 433-line) | Same — defender portability |
-| **Scenarios** | 5 public / 5 custom (ours) / 5 private (held-out, if accessible) | Generalization claims; over-fit detection |
+| **Scenarios** | 5 public + 5 custom (ours) — supplemented with 5 newly designed "hard" scenarios if needed | Generalization claims; over-fit detection. Private/held-out scenarios from the competition are not accessible. |
 | **Model** | gpt-oss-20b (competition default) / gpt-oss-120b / one cross-family | Show results aren't model-specific |
 | **Reps per cell** | ≥ 5 (paper-grade), ≥ 10 if compute allows | Sample variance is large in 7-round battles |
 | **Attacker version (ablation)** | v23 (final) / v21 (pre-FITD/StegoAttack) / v19 (pre-leaked-info) | Show which v23 additions actually moved ASR |
@@ -48,9 +48,9 @@ Run each of the 4 cells above on additional scenarios:
 |---|---|---|
 | 5 public | leaderboard set | Continuity with public ranking |
 | 5 custom (ours) | `scenario_automate_safety.toml`, `scenario_airline_pii.toml`, `scenario_safety_override.toml`, `scenario_secret_keeper.toml`, `scenario_healthtrack_hack.toml` (or similar) | Show defenses generalize beyond public |
-| 5 private (held-out) | If we can recover them, otherwise design 5 new ones with different attack vector mix (PII, jailbreak, tool-extraction, ranking-tamper, format-lock) | The actual leaderboard rationale; central paper claim |
+| 5 newly designed "hard" scenarios (optional, design-as-needed) | Designed by the team to cover disjoint attack vectors (PII, jailbreak, tool-extraction, ranking-tamper, format-lock) — only added if the 5 custom set turns out to overlap too heavily with the public 5 | Substitutes for the unavailable held-out set; supports the over-fit-detection claim |
 
-Per cell × 15 scenarios × 5 reps = **300 battles** per cell × 4 cells = **1200 battles**.
+Per cell × 10–15 scenarios × 5 reps = **250–375 battles** per cell × 4 cells = **1000–1500 battles**.
 
 ### 3.3 Normal-user (helpfulness) sweep (P0)
 
@@ -59,7 +59,7 @@ For every defender in {Defender_quietchaos, Defender_siqi, Defender_quietchaos-a
 - Record per-scenario PASS/FAIL
 - Required: defender PASSES on every scenario it claims to defend, otherwise the battle wins are deployment-invalid
 
-Total: 3-5 defenders × 15 scenarios × 1 = **~75 normal-user runs**.
+Total: 3-5 defenders × 10–15 scenarios × 1 = **~50–75 normal-user runs**.
 
 ### 3.4 Ablation (P1, paper-required)
 
@@ -136,7 +136,7 @@ MVE wall time: ~17 h, cost ~$13.
 
 ## 6. Open Questions
 
-1. **Can we get the 5 private scenarios?** If host released them, fetch. Otherwise, design 5 new "hard" scenarios with disjoint attack vectors.
+1. **Do we need extra "hard" scenarios beyond the 10 we already have (5 public + 5 custom)?** Decide after Phase B Group 1 + 2 results — if the 5 custom set turns out to overlap too much with public in attack-vector coverage, the team designs 5 new ones with disjoint vectors.
 2. **Is `Defender_siqi` from team rank 2, 3, …, 6, or unknown?** Affects how we frame the comparison. If from rank 6 (as suggested), our story is "even rank-6 defender resists v23 attacker on public, validating our concern about over-fit to public."
 3. **Should we test on alternate model families (Claude / Gemini)?** Costs more, but strengthens generalization. Decide before MVE finalized.
 4. **External baseline ASR numbers** — do we re-run them locally or cite published numbers? Local is fairer (same model, same prompts) but costlier.
