@@ -1,7 +1,9 @@
-# Teammate Setup Guide — Cross-Battle / Paper Experiments
+# Experiment Environment Setup
 
-Anyone running experiments for the paper follows this guide once. After setup,
-you can run any of the matrix cells from `docs/experiment_matrix.md`.
+This guide gets your machine and a fresh Lambda Cloud GPU instance ready to
+run any matrix cell from `docs/experiment_matrix.md`. Run it once per
+collaborator; thereafter you only re-launch a fresh Lambda instance per
+experiment session.
 
 ---
 
@@ -204,7 +206,6 @@ When committing your results to the repo:
 
 ## What NOT to do
 
-- ❌ Don't share your `OPENAI_BASE_URL` with another teammate — they should run their own instance
 - ❌ Don't use the original host's endpoint for paper experiments
 - ❌ Don't commit `.env`, `*.pem`, or any file containing API keys
 - ❌ Don't skip the watchdog — Lambda instances left running overnight cost real money
