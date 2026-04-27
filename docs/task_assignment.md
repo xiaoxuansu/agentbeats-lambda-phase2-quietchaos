@@ -1,13 +1,13 @@
 # Phase B — Task Assignment (5 people)
 
-This is the working split for the Phase B paper experiments. Each person is responsible for one cell of the experimental matrix plus a small auxiliary task. Names are placeholders — claim a slot in our group chat. The first run uses MVE-level reps; we expand later only if results require it.
+This is the working split for the Phase B paper experiments. Each person is responsible for one cell of the experimental matrix plus a small auxiliary task. The Person 1–5 labels are unassigned slots — claim one in our group chat. The first run uses MVE-level reps; we expand later only if results require it.
 
 ## Naming convention used in the assignment
 
-- **Attacker_quietchaos**: our team's attacker (final v23, commit `e8386d1`).
-- **Defender_quietchaos**: our team's defender (final v23).
-- **Attacker_siqi**: the other team's attacker (placeholder name; their team identity is not yet confirmed).
-- **Defender_siqi**: the other team's defender (the 433-line, 4-pass pipeline copied to `scenarios/security_arena/agents/team_x_defender/`).
+- **Attacker_quietchaos**: our team's final-submission attacker (v23, commit `e8386d1`).
+- **Defender_quietchaos**: our team's final-submission defender (v32).
+- **Attacker_siqi**: the cross-team attacker used as the comparison baseline. Source code at `scenarios/security_arena/agents/team_x_attacker/`.
+- **Defender_siqi**: the cross-team defender; implements a multi-pass pipeline (Python pre-sanitization + four LLM-based passes). Source code at `scenarios/security_arena/agents/team_x_defender/`.
 
 The 5 public scenarios referenced throughout: portfolioiq, thingularity, gymjailbreak, resume_downgrade, medical_records.
 

@@ -8,8 +8,8 @@ This document defines the full experiment matrix needed for a publishable paper 
 
 | Var | Levels | Why |
 |---|---|---|
-| **Attacker team** | Attacker_quietchaos (Quiet Chaos v23) / Attacker_siqi (Other Team) | Test our attacker is portable, not just over-fit to our defender |
-| **Defender team** | Defender_quietchaos (Quiet Chaos v23) / Defender_siqi (Other Team, 433-line) | Same — defender portability |
+| **Attacker team** | Attacker_quietchaos (our final, v23) / Attacker_siqi (cross-team baseline) | Test our attacker is portable, not just over-fit to our defender |
+| **Defender team** | Defender_quietchaos (our final, v32) / Defender_siqi (cross-team baseline) | Same — defender portability |
 | **Scenarios** | 5 public + 5 custom (ours) — supplemented with 5 newly designed "hard" scenarios if needed | Generalization claims; over-fit detection. Private/held-out scenarios from the competition are not accessible. |
 | **Model** | gpt-oss-20b (competition default) / gpt-oss-120b / one cross-family | Show results aren't model-specific |
 | **Reps per cell** | ≥ 5 (paper-grade), ≥ 10 if compute allows | Sample variance is large in 7-round battles |
