@@ -2,6 +2,8 @@
 
 This document defines the full experiment matrix needed for a publishable paper on the AgentBeats Security Arena results, beyond the official competition output.
 
+The matrix is organized under **QC-Benchmark v1** (see `docs/benchmark_design.md`). The attacker is held fixed at Attacker_quietchaos v23; defenders are the variable being scored. The **MVE that ships with the paper** is a strict subset of the cells listed here — see `docs/task_assignment.md` for the 5-person work split. Cells listed below but not in the MVE are deferred to QC-Benchmark v2.
+
 ---
 
 ## 1. Independent Variables
@@ -13,8 +15,9 @@ This document defines the full experiment matrix needed for a publishable paper 
 | **Scenarios** | 5 public + 5 custom (ours) — supplemented with 5 newly designed "hard" scenarios if needed | Generalization claims; over-fit detection. Private/held-out scenarios from the competition are not accessible. |
 | **Model** | gpt-oss-20b (competition default) / gpt-oss-120b / one cross-family | Show results aren't model-specific |
 | **Reps per cell** | ≥ 5 (paper-grade), ≥ 10 if compute allows | Sample variance is large in 7-round battles |
-| **Attacker version (ablation)** | v23 (final) / v21 (pre-FITD/StegoAttack) / v19 (pre-leaked-info) | Show which v23 additions actually moved ASR |
-| **Defender version (ablation)** | full / no Pass 3 / no Python sanitization / no Pass 4 regen | Identify which defense layer carries weight |
+| **Defender version (ablation)** | full / no Pass 3 / no Python sanitization / no Pass 4 regen | Identify which defense layer carries weight (deferred to v2) |
+
+Note: attacker-version ablation was originally listed here but was dropped during planning. The benchmark holds the attacker fixed at v23; ablation of the attacker would be a separate research question and is not part of QC-Benchmark v1.
 
 ---
 
@@ -44,13 +47,14 @@ Total: 4 cells × 25 = **100 battles** (lower bound).
 
 Run each of the 4 cells above on additional scenarios:
 
-| Scenario set | Source | Rationale |
+| Scenario set (in MVE v1) | Source | Rationale |
 |---|---|---|
-| 5 public | leaderboard set | Continuity with public ranking |
-| 5 custom (ours) | `scenario_automate_safety.toml`, `scenario_airline_pii.toml`, `scenario_safety_override.toml`, `scenario_secret_keeper.toml`, `scenario_healthtrack_hack.toml` (or similar) | Show defenses generalize beyond public |
-| 5 newly designed "hard" scenarios (optional, design-as-needed) | Designed by the team to cover disjoint attack vectors (PII, jailbreak, tool-extraction, ranking-tamper, format-lock) — only added if the 5 custom set turns out to overlap too heavily with the public 5 | Substitutes for the unavailable held-out set; supports the over-fit-detection claim |
+| 5 public | leaderboard set | Continuity with public ranking; covers indirect_injection / prompt_extraction / insecure_output / pii_leak |
+| 1 custom: `automate_safety` | already in repo | Adds the missing primary-jailbreak category. Brings coverage to 5 of 6 competition categories. |
 
-Per cell × 10–15 scenarios × 5 reps = **250–375 battles** per cell × 4 cells = **1000–1500 battles**.
+So 6 scenarios × 5 reps × N defenders. For the v1 MVE, N = 4 headline defenders + 2 calibration cells; see `docs/task_assignment.md` for the per-person split.
+
+Additional in-repo custom scenarios (`airline_pii`, `safety_override`, `secret_keeper`, `healthtrack_hack`, `moneymate_mayhem`) duplicate categories already covered by the 6 above and are deferred to v2.
 
 ### 3.3 Normal-user (helpfulness) sweep (P0)
 
@@ -61,13 +65,15 @@ For every defender in {Defender_quietchaos, Defender_siqi, Defender_quietchaos-a
 
 Total: 3-5 defenders × 10–15 scenarios × 1 = **~50–75 normal-user runs**.
 
-### 3.4 Ablation (P1, paper-required)
+### 3.4 Ablation (deferred to QC-Benchmark v2)
+
+The attacker-version ablation is not part of the v1 plan (the attacker is the benchmark's fixed reference; ablating it is a separate question).
+
+The defender-layer ablation remains the strongest candidate to add when v1's data is in:
 
 | Ablation | Cells | Battles |
 |---|---|---|
-| **Attacker v23 → v21 → v19** | 3 versions × Defender_siqi × 5 public × 5 reps | 75 |
-| **Defender Defender_quietchaos full → -Pass3 → -Sanit → -Pass4** | 4 variants × Attacker_siqi × 5 public × 5 reps | 100 |
-| Sub-total | | **175** |
+| **Defender_quietchaos full → -Pass3 → -Sanit → -Pass4** | 4 variants × Attacker_quietchaos × 6 scenarios × 5 reps | 120 |
 
 ### 3.5 Model generalization (P2, strengthens claim)
 
@@ -99,38 +105,37 @@ Per matrix cell: external baselines × {Attacker_quietchaos, Defender_quietchaos
 
 ---
 
-## 4. Total Compute Estimate
+## 4. Total Compute Estimate (full grid, aspirational)
 
 | Group | Battles | Wall time @ 5 min/battle | Lambda cost @ $0.75/h |
 |---|---|---|---|
 | 3.1 Core cross-team | 100 | ~8 h | ~$6 |
 | 3.2 Scenario expansion | 1200 | ~100 h | ~$75 |
 | 3.3 Normal-user | 75 | ~4 h | ~$3 |
-| 3.4 Ablation | 175 | ~15 h | ~$12 |
+| 3.4 Ablation | 120 | ~10 h | ~$8 |
 | 3.5 Model generalization | 120 | ~10 h | ~$8 |
 | 3.6 External baselines | 210 | ~17 h | ~$13 |
-| **Total** | **~1880 battles** | **~155 h** | **~$120** |
+| **Total** | **~1825 battles** | **~150 h** | **~$115** |
 
-Per teammate budget: ~$30 (split 4 ways).
-
-Parallelism: each teammate runs their own Lambda A10. With 4 instances in parallel, wall time drops to ~40h.
+Parallelism: each collaborator runs their own Lambda A10. With 5 instances in parallel, full-grid wall time drops to ~30 h.
 
 ---
 
-## 5. Minimum Viable Experiment (MVE) for first paper draft
+## 5. Minimum Viable Experiment (MVE) — what ships in QC-Benchmark v1
 
-If compute is tight, the absolute minimum to make a paper claim:
+The MVE is locked in for the 2-day arXiv / workshop submission. See `docs/task_assignment.md` for the per-person split.
 
 | Section | What | Battles |
 |---|---|---|
-| Core | 4 cells (A×D) × 5 public × 3 reps | 60 |
-| Generalization | Same 4 cells × 5 custom × 2 reps | 40 |
-| Helpfulness | All defenders × 10 scenarios | 30 |
-| Ablation light | 2 attacker versions, 2 defender variants × Attacker_siqi × 5 public × 3 reps | 30 |
-| 1 alt model | 4 cells × 5 public × 2 reps on gpt-oss-120b | 40 |
-| **MVE total** | | **~200 battles** |
+| Headline benchmark cells | Attacker_quietchaos × {D-vanilla, D-simple, Defender_quietchaos, Defender_siqi} × 6 scenarios × 5 reps | 120 |
+| Cross-team calibration | Attacker_siqi × {Defender_quietchaos, Defender_siqi} × 6 scenarios × 5 reps | 60 |
+| Helpfulness gate | 4 defenders × 6 scenarios × 1 normal_user run | 24 (light) |
+| Phase A re-clean | Already counted under headline cells (Attacker_quietchaos × Defender_siqi runs as part of the headline at 5 reps with `--max-model-len 16384`) | — |
+| **MVE total** | | **180 battles + 24 helpfulness runs** |
 
-MVE wall time: ~17 h, cost ~$13.
+MVE wall time: ~5 h with 5 instances in parallel. Cost: ~$13 across all collaborators combined.
+
+Items deferred to QC-Benchmark v2: external attacker baselines (PAIR / GCG / AutoDAN), `Other Team/agents 2/defender/`, defender-layer ablation, gpt-oss-120b, cross-family models, supply_chain scenario, 10-rep tightening.
 
 ---
 
