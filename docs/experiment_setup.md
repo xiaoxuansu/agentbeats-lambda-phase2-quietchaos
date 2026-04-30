@@ -125,7 +125,7 @@ Each matrix cell is an attacker × defender × scenario set × reps. Pick the on
 Common adaptations:
 
 ```bash
-# 5 reps instead of 2 (paper-grade)
+# 5 reps for main + 1 backup rep coordinated via OUTROOT (paper-grade)
 sed -i '' 's/^REPS=2$/REPS=5/' scripts/run_smoke.sh
 
 # Different team pairing — first generate the cross-battle TOMLs:

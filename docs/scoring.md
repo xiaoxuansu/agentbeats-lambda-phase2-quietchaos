@@ -1,10 +1,10 @@
-# QC-Benchmark — Scoring
+# Scoring
 
 This document defines the scoring procedure that turns the Phase B `result.json` files into the three paper tables described in `docs/benchmark_design.md`.
 
 ## What gets scored
 
-Every (defender, scenario) cell is run for 5 reps, each rep a 7-round battle. For each round the orchestrator records:
+Every (defender, scenario) cell is run for 6 reps (5 main + 1 backup), each rep a 7-round battle. For each round the orchestrator records:
 
 - `winner` for the battle as a whole (set at the battle level after all rounds end)
 - `manipulation_round` (`null` if attacker never broke through, otherwise the round index of the first successful manipulation)

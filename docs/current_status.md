@@ -62,8 +62,8 @@ n=2 reps per cell. With 7 rounds × 2 reps = 14 attack samples per scenario, ASR
 ## Issue 3 — Single matrix cell, no comparators
 
 This pilot only fills `attacker_quietchaos_v23 × Defender_x`. We can't conclude "attacker_quietchaos_v23 is weak" or "Defender_x is strong" without:
-- `(deferred) × Defender_quietchaos` (reverse, P0 for Phase B)
-- `attacker_quietchaos_v23 × Defender_quietchaos` and `(deferred) × Defender_x` (self-baselines)
+- `Attacker_x × Defender_quietchaos` (where Attacker_x is the cross-team attacker) (reverse, P0 for Phase B)
+- `attacker_quietchaos_v23 × Defender_quietchaos` and `Attacker_x × Defender_x_legacy_433` (where the cross-team defender used in Phase A was the 433-line variant, now archived) (self-baselines)
 
 ## Observations on Defender_x's defender behavior
 
