@@ -74,7 +74,7 @@ class Defender(AgentExecutor):
         self.client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL"),
-            timeout=55.0,  # 4 calls × 55s = 220s < 240s limit — 20s safety margin
+            timeout=60.0,  # 4 calls × 55s = 220s < 240s limit — 20s safety margin
         )
         self.model = model
 
