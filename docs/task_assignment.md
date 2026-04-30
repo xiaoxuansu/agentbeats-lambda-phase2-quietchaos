@@ -10,6 +10,7 @@ The benchmark holds the attacker fixed at Attacker_quietchaos v23 across every c
 - **Defender_quietchaos**: our team's final-submission defender (v32).
 - **Attacker_siqi**: the cross-team attacker used as the comparison baseline. Source code at `scenarios/security_arena/agents/team_x_attacker/`.
 - **Defender_siqi**: the cross-team defender; implements a multi-pass pipeline (Python pre-sanitization + four LLM-based passes). Source code at `scenarios/security_arena/agents/team_x_defender/`.
+- **Defender_siqi_v2** the cross-team defender, added as an additional cross-team comparison point. Source code at `scenarios/security_arena/agents/team_y_defender/`. Run with `bash scripts/run_smoke_dy.sh` (uses the `*_acq_vs_dy.toml` scenario configs).
 - **D-vanilla**: a no-defense baseline wrapper to be implemented by Person 4. Source at `scenarios/security_arena/agents/d_vanilla/`.
 - **D-simple**: a system-prompt-only defense baseline wrapper to be implemented by Person 4. Source at `scenarios/security_arena/agents/d_simple/`.
 
