@@ -119,7 +119,7 @@ Each matrix cell is an attacker × defender × scenario set × reps. Pick the on
 | Script | What it does | Adapt for |
 |---|---|---|
 | `scripts/run_smoke.sh` | Runs `attacker_quietchaos_v23 × Defender_x` × 5 public × 2 reps | Change `SCENARIOS=(...)` and `REPS` |
-| `scripts/aggregate_smoke.py` | Aggregates results into ASR table | Change `ROOT` path |
+| `scripts/aggregate_benchmark.py` | Aggregates results into ASR table | Change `ROOT` path |
 | `scripts/watchdog.sh` | Cost protection + auto-terminate | Always run alongside `run_smoke.sh` |
 
 Common adaptations:
@@ -186,7 +186,7 @@ In Lambda Cloud dashboard → Instances → your instance → **Terminate**.
 When committing your results to the repo:
 - [ ] `results/<cell-name>/result.json` for each battle
 - [ ] `results/<cell-name>/battle_log.md` for human inspection
-- [ ] `results/<cell-name>/summary.json` from `aggregate_smoke.py`
+- [ ] `results/<cell-name>/summary.json` from `aggregate_benchmark.py`
 - [ ] Note the model, vLLM args, max_model_len, attacker version (commit hash), defender version (commit hash) in a `RUN_INFO.md` next to the results
 
 ---

@@ -38,7 +38,7 @@ echo "→ Verifying vLLM endpoint at ${OPENAI_BASE_URL}..."
 if ! curl -sf --max-time 5 "${OPENAI_BASE_URL}/models" > /dev/null; then
   echo "❌ Cannot reach ${OPENAI_BASE_URL}/models"
   echo "   Did you start your Lambda vLLM instance?"
-  echo "   See docs/lambda_setup.md"
+  echo "   See docs/experiment_setup.md"
   exit 1
 fi
 echo "✓ vLLM endpoint reachable"
