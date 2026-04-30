@@ -78,7 +78,16 @@ results/cross_smoke/A_qc_vs_D_x_backup/<B>_rep1/      ← backup, Defender_x
 results/cross_smoke/A_qc_vs_D_y_backup/<B>_rep1/      ← backup, Defender_y
 ```
 
-Drop a `RUN_INFO.md` at each of these four directories with: who ran it, when, model name, exact vLLM args, attacker commit hash, defender path used, anomalies noticed.
+Per battle, each `<scenario>_repN/` directory contains files the orchestrator writes automatically:
+- `result.json` — battle outcome including `winner`, `manipulation_round`, full `battle_log` per round, crash counts. **A successful attack means `winner == "attacker"` in this file.**
+- `battle_log.md` — human-readable transcript
+- `battle_log.html` — rendered version of the same
+- `attack_succeeded.json` — automatically written when the attacker wins; lists what was successfully extracted / manipulated
+- `result.err` — only present if there were crashes; the error log
+
+Drop a `RUN_INFO.md` at each of the four cell-root directories with: who ran it, when, model name, exact vLLM args, attacker commit hash, defender path used, anomalies noticed.
+
+These directories ARE committed to git (the `.gitignore` excludes only `results/scratch/` and `results/tmp/`). Do `git add results/cross_smoke/` after your run to stage everything; commit and push to `paper-experiments`.
 
 ### Person 1 — portfolioiq + write `tag_patterns.py`
 
