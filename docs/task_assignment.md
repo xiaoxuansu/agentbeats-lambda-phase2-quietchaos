@@ -40,7 +40,7 @@ The backup rotation is round-robin so every scenario gets exactly 1 backup rep f
 | **Person 2 (Qingdou)** | thingularity | gymjailbreak | 12 | Write `scripts/aggregate_benchmark.py` (~60 lines) | ~1.2 h compute + 2 h coding |
 | **Person 3** | gymjailbreak | resume_downgrade | 12 | Qualitative analysis lead: collate everyone's hand-picked attack examples into `docs/qualitative_examples.md` | ~1.2 h compute + 3–4 h analysis |
 | **Person 4 (Siqi)** | resume_downgrade | medical_records | 12 | Paper writing: methodology + related-work survey | ~1.2 h compute + 4 h writing |
-| **Person 5 (Hui)** | medical_records | portfolioiq | 12 | Paper writing lead: abstract, intro, discussion, table-rendering scripts | ~1.2 h compute + 6 h writing |
+| **Person 5 (Xiaochuang(paper), Hui)** | medical_records | portfolioiq | 12 | Paper writing lead: abstract, intro, discussion, table-rendering scripts | ~1.2 h compute + 6 h writing |
 | **Total** | | | **60 battles** = 6 reps per (defender, scenario) cell | | ~1.5 h parallel compute + side tasks |
 
 Lambda cost: each person spins up their own A10 for ~1.2 h, runs their cell, terminates. About $0.90 per person, **~$5 total**.
