@@ -15,7 +15,7 @@ The OPENAI_BASE_URL the host gave us during the official competition is **post-c
 2. Using post-competition host compute for personal research is inappropriate; the credit was provisioned for the event only.
 3. We cannot reproduce results months later if the endpoint is gone — paper-grade work needs reproducibility under our own control.
 
-**Each teammate runs their own Lambda Cloud GPU instance with their own credit.** Credits are individual, not shareable.
+**Each collaborator runs their own Lambda Cloud GPU instance with their own credit.** Credits are individual, not shareable.
 
 ---
 
@@ -26,7 +26,7 @@ The OPENAI_BASE_URL the host gave us during the official competition is **post-c
 - [ ] This repo cloned **and on branch `paper-experiments`** (NOT main): `git clone <repo-url> && cd <repo> && git checkout paper-experiments`
 - [ ] Python 3.13+ and `uv` installed locally (the repo uses `uv`)
 - [ ] ~$5–30 of Lambda credit per matrix cell you're assigned (see `docs/experiment_matrix.md` for budgets)
-- [ ] The repo includes the external-team agent code at `scenarios/security_arena/agents/team_x_attacker/` and `scenarios/security_arena/agents/team_x_defender/` — these are the Attacker_siqi and Defender_siqi referenced throughout the docs. Nothing extra to fetch.
+- [ ] The repo includes the cross-team agent code at `scenarios/security_arena/agents/team_x_defender/` (Defender_x, ~433 lines, multi-pass pipeline) and `scenarios/security_arena/agents/team_y_defender/` (Defender_y, ~206 lines, single-pass pipeline). Both are referenced throughout the docs.
 
 ---
 
@@ -114,11 +114,11 @@ If you get a JSON response with `openai/gpt-oss-20b`, you're set.
 
 ## Step 4: Run your assigned matrix cell
 
-Each matrix cell is an attacker × defender × scenario set × reps. Pick the one your teammate lead has assigned and adapt the existing scripts:
+Each matrix cell is an attacker × defender × scenario set × reps. Pick the one your project lead has assigned and adapt the existing scripts:
 
 | Script | What it does | Adapt for |
 |---|---|---|
-| `scripts/run_smoke.sh` | Runs `Attacker_quietchaos × Defender_siqi` × 5 public × 2 reps | Change `SCENARIOS=(...)` and `REPS` |
+| `scripts/run_smoke.sh` | Runs `attacker_quietchaos_v23 × Defender_x` × 5 public × 2 reps | Change `SCENARIOS=(...)` and `REPS` |
 | `scripts/aggregate_smoke.py` | Aggregates results into ASR table | Change `ROOT` path |
 | `scripts/watchdog.sh` | Cost protection + auto-terminate | Always run alongside `run_smoke.sh` |
 

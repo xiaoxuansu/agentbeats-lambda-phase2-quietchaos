@@ -1,93 +1,136 @@
-# Phase B — Task Assignment (5 people, 2-day arXiv / workshop submission)
+# Task Assignment (5 collaborators, 2-day window)
 
-This is the working split for QC-Benchmark v1 (see `docs/benchmark_design.md`). The Person 1–5 labels are unassigned slots — claim one in our group chat. The first run uses 5 reps per cell; we expand later only if v1 results require it.
+This is the working split for the Cross-Team Defender Benchmark experiment described in `docs/benchmark_design.md`. The Person 1–5 labels are unassigned slots; claim one in coordination.
 
-The benchmark holds the attacker fixed at Attacker_quietchaos v23 across every cell; the variable across cells is the defender being scored. Person 1 is also responsible for the pattern-tagging post-processor (`scripts/tag_patterns.py`) and the benchmark aggregator (`scripts/aggregate_benchmark.py`).
+## ⚠️ Critical vLLM configuration (READ BEFORE RUNNING)
 
-## Naming convention used in the assignment
+Every collaborator who starts a vLLM instance must use:
 
-- **Attacker_quietchaos**: our team's final-submission attacker (v23, commit `e8386d1`).
-- **Defender_quietchaos**: our team's final-submission defender (v32).
-- **Attacker_siqi**: the cross-team attacker used as the comparison baseline. Source code at `scenarios/security_arena/agents/team_x_attacker/`.
-- **Defender_siqi**: the cross-team defender; implements a multi-pass pipeline (Python pre-sanitization + four LLM-based passes). Source code at `scenarios/security_arena/agents/team_x_defender/`.
-- **Defender_siqi_v2** the cross-team defender, added as an additional cross-team comparison point. Source code at `scenarios/security_arena/agents/team_y_defender/`. Run with `bash scripts/run_smoke_dy.sh` (uses the `*_acq_vs_dy.toml` scenario configs).
-- **D-vanilla**: a no-defense baseline wrapper to be implemented by Person 4. Source at `scenarios/security_arena/agents/d_vanilla/`.
-- **D-simple**: a system-prompt-only defense baseline wrapper to be implemented by Person 4. Source at `scenarios/security_arena/agents/d_simple/`.
+```
+vllm serve openai/gpt-oss-20b \
+    --gpu-memory-utilization 0.85 \
+    --max-model-len 16384
+```
 
-The 6 scenarios for QC-Benchmark v1: portfolioiq, thingularity, gymjailbreak, resume_downgrade, medical_records, automate_safety. (5 public + 1 custom; covers 5 of 6 competition categories — supply_chain intentionally omitted from v1.)
+**Do NOT use `--max-model-len 8192` or lower.** Our attacker generates prompts up to about 8,800 tokens (planner + generator + critic + battle history). The Phase A pilot ran at 8192 and lost 8 of its 70 attack rounds to HTTP 400 "Input length exceeds context length" errors. Those crashed rounds were silently scored as defender wins, contaminating the data. 16384 is the lowest acceptable value; A10 24 GB fits 16384 at 0.85 utilization.
 
----
+If your `result.err` shows `Input length (XXXX) exceeds model's maximum context length`, stop the run, restart vLLM with the correct args, and rerun the affected scenario.
+
+## Naming convention
+
+- **attacker_quietchaos_v23** — our attacker, commit `e8386d1`. Frozen across every cell.
+- **Defender_x** — Quiet Chaos's *early-iteration* defender (v4, commit `c9ce039`). ~190 lines, "goal-aware intent analysis": one intent-classification layer plus the LLM call. Source code at `scenarios/security_arena/agents/quietchaos_v4_defender/`.
+- **Defender_y** — cross-team simple defender, ~206 lines, single-LLM-call pipeline with `detect.j2` and `verify.j2` templates, no `<untrusted_data>` wrapper in `templates/user.j2`. Source code at `scenarios/security_arena/agents/team_y_defender/`.
+
+Other defender variants on disk that are NOT part of this benchmark (preserved for possible later use):
+- `agents/team_x_defender_433line_unused/` — 433-line multi-pass cross-team defender (would risk floor-effect ASR)
+- `agents/team_x_defender_206wrapped_unused/` — 206-line cross-team defender with `<untrusted_data>` wrapper
+
+The 5 scenarios: portfolioiq, thingularity, gymjailbreak, resume_downgrade, medical_records.
 
 ## Assignment table
 
-| Slot | Task | Battles / Tests | Compute | Cost |
-|---|---|---|---|---|
-| **Person 1** | Tooling + Phase A re-clean + helpfulness gate | Re-run Attacker_quietchaos × Defender_siqi × 6 scenarios × 5 reps with `--max-model-len 16384` (= 30 battles, includes Phase A redo); write `scripts/tag_patterns.py` and `scripts/aggregate_benchmark.py`; run `--normal-user` for all 4 defenders × 6 scenarios = 24 helpfulness runs. | 30 + 24 helpfulness | ~3 h compute + 2 h tooling | ~$2 |
-| **Person 2** | Reverse cross-battle (calibration) | Attacker_siqi × Defender_quietchaos × 6 scenarios × 5 reps = **30 battles** | ~3 h | ~$2 |
-| **Person 3** | Self-baseline + cross-team self | Attacker_quietchaos × Defender_quietchaos × 6 × 5 + Attacker_siqi × Defender_siqi × 6 × 5 = **60 battles** | ~5 h | ~$4 |
-| **Person 4** | Implement defender baselines + run their cells | Implement `agents/d_vanilla/` and `agents/d_simple/` wrappers (~30 lines each); run Attacker_quietchaos × D-vanilla × 6 × 5 + Attacker_quietchaos × D-simple × 6 × 5 = **60 battles** | ~5 h compute + 1 h coding | ~$4 |
-| **Person 5** | Paper writing lead + light extra runs | Run any spillover battles (e.g. add 5 extra reps on the most-uncertain cell after preliminary results); start the paper draft with the methodology section, the figure-generating scripts, and the qualitative-example appendix | ~10–20 spillover battles, plus 4–6 h writing | ~$1 |
-| **Total** | | **~180 battles + 24 helpfulness runs** | ~5 h parallel wall time | **~$13** |
+Each collaborator owns **one main scenario** (5 reps × 2 defenders = 10 battles) and runs **1 backup rep on the next person's scenario** (1 rep × 2 defenders = 2 battles). Each person totals **12 battles**; each (defender, scenario) cell collects **6 reps** (5 from primary owner + 1 from the previous person as backup).
 
----
+The backup rotation is round-robin so every scenario gets exactly 1 backup rep from a different person:
 
-## Detailed responsibilities per slot
+| Slot | Main scenario | Backup scenario | Battles | Side task | Total time |
+|---|---|---|---|---|---|
+| **Person 1** | portfolioiq | thingularity | 10 + 2 = **12** | Write `scripts/tag_patterns.py` (~80 lines) | ~1.2 h compute + 3 h coding |
+| **Person 2** | thingularity | gymjailbreak | 12 | Write `scripts/aggregate_benchmark.py` (~60 lines) | ~1.2 h compute + 2 h coding |
+| **Person 3** | gymjailbreak | resume_downgrade | 12 | Qualitative analysis lead: collate everyone's hand-picked attack examples into `docs/qualitative_examples.md` | ~1.2 h compute + 3–4 h analysis |
+| **Person 4** | resume_downgrade | medical_records | 12 | Paper writing: methodology + related-work survey | ~1.2 h compute + 4 h writing |
+| **Person 5** | medical_records | portfolioiq | 12 | Paper writing lead: abstract, intro, discussion, table-rendering scripts | ~1.2 h compute + 6 h writing |
+| **Total** | | | **60 battles** = 6 reps per (defender, scenario) cell | | ~1.5 h parallel compute + side tasks |
 
-### Person 1 — Tooling + Phase A re-clean + helpfulness gate
+Lambda cost: each person spins up their own A10 for ~1.2 h, runs their cell, terminates. About $0.90 per person, **~$5 total**.
 
-The tooling is the biggest blocker for everyone else's results to be aggregable, so Person 1 starts here.
+The backup design protects against single-point-of-failure: if a person mis-configures vLLM and contaminates their 5 main reps on (e.g.) portfolioiq, the previous person's backup rep on portfolioiq survives, and the team can confirm the contamination by comparing the lone backup to the contaminated 5. Re-run only the affected slot.
 
-- **`scripts/tag_patterns.py`** (about 80 lines). Reads a `result.json`, runs each round's `attack_output` through five regex / heuristic detectors (OPF, CCBOS, RFCM, FA, MD — see `docs/scoring.md` for the rules), and adds a `patterns: [...]` list to each `battle_log` entry. Idempotent. No network access.
-- **`scripts/aggregate_benchmark.py`** (about 60 lines). Reads the `results/` tree, applies the helpfulness-gate filter, computes the three tables (defender ranking, pattern × defender heatmap, cross-team supplementary), and writes them as markdown plus a single `benchmark_summary.json`.
-- **Phase A re-clean.** The Phase A pilot ran Attacker_quietchaos × Defender_siqi at `--max-model-len 8192` and lost 8 attacker rounds to context-window crashes. Re-run the full 6-scenario × 5-rep cell at 16384 ctx; this serves as the headline benchmark cell for that defender pairing.
-- **Helpfulness gate.** Run `--normal-user` mode for each of the four headline defenders (D-vanilla, D-simple, Defender_quietchaos, Defender_siqi) on each of the 6 scenarios. Record PASS / FAIL in a small markdown table at `results/helpfulness_gate.md`. Flag any failures so Person 1 can decide whether to exclude the defender from the headline table.
+Beyond their own side task, every collaborator does **battle-log analysis on their own main + backup scenarios** (12 battles total): read each round in the `battle_log.md` files, pick 2–3 representative attack rounds per pattern (a mix of successes and failures), and write a short paragraph per pick. Submit picks to Person 3 to collate into the appendix.
 
-Aim to finish tooling and Phase A re-clean before Persons 2–4 start their cells, so they can use `tag_patterns.py` immediately.
+## Per-slot detail
 
-### Person 2 — Reverse cross-battle
+Every collaborator runs the same compute pattern: their main scenario × both defenders × 5 reps = 10 battles, plus their backup scenario × both defenders × 1 rep = 2 battles. Total 12 battles per person.
 
-Adapts `scripts/run_smoke.sh`: in the cross-battle TOMLs, set the defender to point at our `agents/defender/` (Defender_quietchaos) and the attacker to point at `agents/team_x_attacker/` (Attacker_siqi). Keep SCENARIOS as the 6 benchmark scenarios; bump REPS from 2 to 5. Total 30 battles. Expected outcome: Attacker_siqi rarely beats Defender_quietchaos; even confirming that is paper-grade calibration data.
+### How to run your 12-battle cell
 
-### Person 3 — Self-baseline + cross-team self
+For your main scenario `<M>` and backup scenario `<B>`, run four batches back-to-back on a single Lambda instance:
 
-Two cells, 30 battles each. The first (Attacker_quietchaos × Defender_quietchaos) tells us whether our attacker is genuinely strong by checking it against our own defender. The second (Attacker_siqi × Defender_siqi) tells us whether their attacker is strong by checking it against their own defender. Together with Persons 1 and 2's results, the four cells form the cross-team supplementary table.
+```bash
+# Main: 5 reps on each defender for your assigned scenario <M>
+SCENARIOS=("<M>") REPS=5 bash scripts/run_smoke.sh        # against Defender_x
+SCENARIOS=("<M>") REPS=5 bash scripts/run_smoke_dy.sh     # against Defender_y
 
-### Person 4 — Defender baselines
+# Backup: 1 rep on each defender for the next person's scenario <B>
+SCENARIOS=("<B>") REPS=1 bash scripts/run_smoke.sh        # against Defender_x
+SCENARIOS=("<B>") REPS=1 bash scripts/run_smoke_dy.sh     # against Defender_y
+```
 
-Implement two minimal wrapper agents at `scenarios/security_arena/agents/d_vanilla/` and `agents/d_simple/`. Each is about 30 lines: an `__init__.py` plus an `agent.py` that loads the role's system prompt from the scenario context, optionally appends a single hardening line for D-simple, calls `openai.AsyncOpenAI` with the model from the env, and returns the response. No detection, no Python sanitization, no multi-pass. Then run Attacker_quietchaos against each on all 6 scenarios at 5 reps = 60 battles total.
+Adapt the SCENARIOS array and REPS in each script (or pass them as env vars if the script supports it). About 1.2 hours total compute for all four batches. Terminate the Lambda instance immediately after.
 
-D-vanilla is expected to have very high ASR (~90%+) — it's the calibration ceiling. D-simple is expected to be intermediate (~50-70% ASR). If either fails the helpfulness gate (D-vanilla almost certainly passes; D-simple might over-refuse), Person 4 coordinates with Person 1 on whether to re-tune the system-prompt hardening line for D-simple.
+Commit main results under `results/Aqc_v23_vs_<X>/<M>_repN/` and `results/Aqc_v23_vs_<Y>/<M>_repN/`. Commit backup results under `results/Aqc_v23_vs_<X>/<B>_backup_rep1/` and `results/Aqc_v23_vs_<Y>/<B>_backup_rep1/` (the `_backup_` prefix flags them so the aggregator can merge them with the main 5 reps owned by the next person). A `RUN_INFO.md` at each cell root.
 
-### Person 5 — Paper writing lead + spillover
+### Person 1 — portfolioiq + write `tag_patterns.py`
 
-Person 5 starts the paper draft on day 1 in parallel with the others' compute. The methodology section, the three table-generating scripts, the qualitative-example appendix (3–5 hand-picked illustrative attack examples per pattern), and the related-work survey can all be written before the actual numbers come back. As Persons 1–4 commit results, Person 5 fills in the tables and updates the prose.
+Compute: 10 battles on portfolioiq.
 
-If the preliminary aggregate from Person 1 reveals a cell with very wide confidence intervals (one defender's ASR is borderline e.g. 40% ± 25pp), Person 5 runs an extra 5 reps on that cell to tighten the interval before final-table generation.
+Side task: `scripts/tag_patterns.py` (~80 lines). Reads a `result.json`, runs each round's `attack_output` through five regex / heuristic detectors (OPF, CCBOS, RFCM, FA, MD — see `docs/scoring.md`), and adds a `patterns: [...]` list to each `battle_log` entry. Idempotent. Once written, run it against your own portfolioiq battle data first to sanity-check (portfolioiq rounds should mostly tag as OPF and MD).
 
----
+### Person 2 — thingularity + write `aggregate_benchmark.py`
 
-## Coordination items (decide before anyone starts)
+Compute: 10 battles on thingularity.
 
-1. **Branch**: all Phase B work goes on `paper-experiments`. No commits to `main`.
-2. **Result directory naming**: `results/phaseB_<cell-name>/<scenario>_repN/`. Example: `results/phaseB_Attacker_siqi_vs_Defender_quietchaos/portfolioiq_rep1/`.
-3. **Per-cell `RUN_INFO.md`**: at the root of each cell directory, a small markdown file noting model, vLLM args, max-model-len, attacker commit hash, defender commit hash. Required for reproducibility.
-4. **Execution order**: Person 1 first (tooling unblocks everyone, helpfulness gate decides table membership). Persons 2, 3, 4 in parallel after tooling lands. Person 5 starts paper writing in parallel from hour 0.
+Side task: `scripts/aggregate_benchmark.py` (~60 lines). Reads the `results/` tree, computes Defender × Scenario ASR plus Pattern × Defender heatmap, writes markdown tables to `results/tables/` and a `benchmark_summary.json`. Verify on your own thingularity data first (thingularity rounds should mostly tag as CCBOS once long-context attacks fire).
+
+### Person 3 — gymjailbreak + qualitative analysis lead
+
+Compute: 10 battles on gymjailbreak.
+
+Side task: as soon as the other four collaborators commit their `battle_log.md` files, collate everyone's hand-picked attack examples (each person picks 2–3 per pattern from their own scenario) into `docs/qualitative_examples.md`. The result is the paper's qualitative-examples appendix.
+
+### Person 4 — resume_downgrade + paper methodology
+
+Compute: 10 battles on resume_downgrade.
+
+Side task: write the paper's Methodology section (including the disclosure paragraph quoted in `docs/benchmark_design.md`) and the Related Work survey. Both can be drafted in parallel with your compute.
+
+### Person 5 — medical_records + paper writing lead
+
+Compute: 10 battles on medical_records.
+
+Side task: write the paper's Abstract, Intro, and Discussion. Build the table-rendering scripts. As results come in from all five collaborators, fill in the headline Defender × Scenario ASR table and the Pattern × Defender heatmap. Coordinate with Person 3 to incorporate the qualitative-examples appendix.
+
+### Battle-log analysis (everyone)
+
+After running their 10 battles, every collaborator reads each round in their own `battle_log.md` files and picks **2–3 representative attack rounds per pattern that appears in their scenario**, mixing successful breakthroughs and resisted attacks. For each pick, write a short paragraph: what the attack does, why it works or fails, and which defender it targeted. Submit picks to Person 3, who collates into `docs/qualitative_examples.md`.
+
+Expect different scenarios to surface different patterns:
+- portfolioiq → mostly OPF and MD
+- thingularity → mostly CCBOS, some FA
+- gymjailbreak → mostly FA (intensity tables) and OPF
+- resume_downgrade → mostly OPF and RFCM
+- medical_records → mostly FA
+
+
+## Coordination items
+
+1. **Branch**: all work goes on `paper-experiments`. No commits to `main`.
+2. **Result directory naming**: `results/<cell-name>/<scenario>_repN/`. Example: `results/Aqc_vs_Dx/portfolioiq_rep1/`.
+3. **Per-cell `RUN_INFO.md`**: at the root of each cell directory, a small markdown file noting model, vLLM args, max-model-len, attacker commit hash, defender commit hash, who ran it, when. Required for reproducibility.
+4. **Execution order**: Person 1 first (tooling unblocks aggregation). Persons 2, 3, 4 in parallel after tooling lands. Person 5 starts paper writing in parallel from hour 0.
 5. **API key hygiene**: every person uses their own Lambda API key, never shares it in chat or commits, and revokes it after their cell finishes.
-
----
 
 ## What to commit back when your cell is done
 
-For each cell, push a directory tree like:
-
 ```
-results/phaseB_<cell-name>/
+results/<cell-name>/
 ├── <scenario>_repN/
-│   ├── result.json         (mandatory)
-│   ├── battle_log.md       (mandatory; for human inspection)
-│   └── battle_log.html     (mandatory)
-├── summary.json            (mandatory; from aggregate_benchmark.py)
-└── RUN_INFO.md             (mandatory)
+│   ├── result.json
+│   ├── battle_log.md
+│   └── battle_log.html
+├── summary.json            (from aggregate_benchmark.py)
+└── RUN_INFO.md
 ```
 
-`RUN_INFO.md` should include at minimum: who ran it, when (date), the model name + tag, the exact vLLM args used, the attacker code commit hash, the defender code commit hash, and any anomalies you noticed (timeouts, crashes, etc.). Two paragraphs is plenty.
+`RUN_INFO.md` contents: who ran it, date, model name + tag, exact vLLM args, attacker commit hash, defender commit hash, anomalies noticed (timeouts, crashes, etc.). Two paragraphs is plenty.

@@ -32,7 +32,7 @@ The classifier maps a scenario by inspecting `attack_goal + domain_description +
 
 ---
 
-## 2. Concrete attack patterns observed (Phase A pilot, A_qc × D_siqi)
+## 2. Concrete attack patterns observed (Phase A pilot, attacker_quietchaos_v23 × D_external)
 
 Each pattern below is taken verbatim from a `battle_log.md` round. Patterns repeat with sampling variation across rounds.
 
@@ -154,10 +154,10 @@ If we consolidate Sections 1 and 2 into a paper-ready table:
 
 ## 4. What "effective" means here, given Phase A data
 
-Phase A observed 0 attacker wins in 6 clean battles against Defender_siqi on the 5 public scenarios. That does *not* tell us our strategies are ineffective in general — it tells us **on these five public scenarios, against this specific 4-pass defender, our strategies were defeated**. To make claims about strategy effectiveness, we need:
+Phase A observed 0 attacker wins in 6 clean battles against Defender_x on the 5 public scenarios. That does *not* tell us our strategies are ineffective in general — it tells us **on these five public scenarios, against this specific 4-pass defender, our strategies were defeated**. To make claims about strategy effectiveness, we need:
 
-1. **Self-baseline** (Person 3 in `task_assignment.md`) — does Attacker_quietchaos beat Defender_quietchaos? If yes, the attacker is genuinely strong, and the 0/6 reflects D_siqi's hardness on public.
-2. **Reverse cross-battle** (Person 2) — does Attacker_siqi beat Defender_quietchaos? Calibrates the cross-team gap.
+1. **Self-baseline** (Person 3 in `task_assignment.md`) — does attacker_quietchaos_v23 beat Defender_quietchaos? If yes, the attacker is genuinely strong, and the 0/6 reflects D_external's hardness on public.
+2. **Reverse cross-battle** (Person 2) — does (deferred) beat Defender_quietchaos? Calibrates the cross-team gap.
 3. **Ablation** (Person 4) — drop CC-BOS, drop role-fit, drop format anchoring one at a time and re-measure ASR. This is what isolates which strategies actually carry weight.
 4. **Custom-scenario expansion** (Person 5) — strategies that work on public may fail on out-of-distribution scenarios; the reverse may also be true.
 

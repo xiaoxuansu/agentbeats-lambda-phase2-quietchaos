@@ -1,52 +1,35 @@
-# QC-Benchmark — Design
+# Experiment Plan — Cross-Team Defender Benchmark
 
-This document is the formal spec for the benchmark our paper publishes. The complementary `docs/scoring.md` defines the scoring procedure and pattern tags. Workflow and assignments live in `docs/task_assignment.md`.
+## Goal
 
-## What QC-Benchmark is
+Benchmark our latest attacker against two structurally simple defenders — one early-iteration Quiet Chaos defender, one cross-team defender — on five public scenarios from the AgentBeats competition.
 
-A standardized red-team suite that scores any defender against a fixed attacker. The attacker is a snapshot of our v23 submission. The defender is the variable. The framing matters because:
+## Frozen attacker
 
-- **Reproducibility.** Anyone with a Lambda credit and this branch can re-score any defender against the same attacker, on the same scenarios, with the same model and decoding parameters.
-- **Diagnostic over global ASR.** Scoring is per-attack-pattern as well as per-scenario, so a result of "this defender breaks on output pre-filling but holds on format anchoring" is a first-class output of the benchmark, not an after-the-fact analysis.
-- **Helpfulness as a precondition.** Defenders that fail the normal-user (helpfulness) test are excluded from the benchmark — a defender that wins by refusing everything is not a working defender, and should not appear in the ranking.
+- **attacker_quietchaos_v23** — commit `e8386d1`. The latest iteration of our attacker (post-competition resubmit with internal simulation feedback). Includes the CC-BOS engine, ML scenario classifier, adversarial suffix module, and PAIR-style 4-call pipeline.
+- **Model**: `openai/gpt-oss-20b` via vLLM in Docker.
+- **vLLM args**: `--gpu-memory-utilization 0.85 --max-model-len 16384`. Lower context is forbidden (Phase A pilot at 8192 caused 8 attacker self-crashes).
+- **Hardware**: 1× A10 (24 GB).
+- **Decoding**: vLLM defaults.
+- **Rounds per battle**: 7.
+- **Reps per cell**: 6 (5 main + 1 backup; see `docs/task_assignment.md`).
 
-## Frozen attacker definition
+## Defenders
 
-Changing any of these requires a benchmark version bump (QC-Benchmark v1 → v2).
+Two structurally simple defenders from different teams, picked to give a heterogeneous "weak baseline" comparison:
 
-- **Attacker code:** commit `e8386d1` on branch `paper-experiments`. Final v23 submission.
-- **Model:** `openai/gpt-oss-20b`, served by vLLM in Docker.
-- **vLLM args:** `--gpu-memory-utilization 0.85 --max-model-len 16384`. Lower context windows are forbidden — the Phase A pilot ran at 8192 and lost 8 of its 70 attack rounds to attacker self-crashes.
-- **Hardware:** 1× A10 (24 GB) is the reference. A100 / H100 are acceptable; the runner records which was used.
-- **Decoding:** vLLM defaults; no custom temperature or top-p overrides.
-- **Rounds per battle:** 7 (orchestrator default for these scenarios).
-- **Reps per cell:** 5 minimum for any defender we report on.
+- **Defender_x** — Quiet Chaos's own *early-iteration* defender (v4, commit `c9ce039`). Source code checked out to `scenarios/security_arena/agents/quietchaos_v4_defender/`. ~190 lines, "goal-aware intent analysis" — a single intent-classification layer plus the LLM call. No multi-pass pipeline, no detect / verify templates, no Python sanitization. Represents our team's earliest defended submission, deliberately weak.
+- **Defender_y** — Cross-team simple defender, ~206 lines, single-LLM-call pipeline with `detect.j2` and `verify.j2` templates. Source code at `scenarios/security_arena/agents/team_y_defender/`. The `templates/user.j2` is the simpler form that hands the input to the LLM verbatim.
 
-Anything else inside the attacker — strategy selection, classifier weights, prompt templates, fallback arrays — is frozen by virtue of pinning the commit.
+The Defender_x / Defender_y pair gives **cross-team and cross-architecture** comparison: our team's intent-classifier-only early defender vs another team's detect-then-verify pipeline. Both are deliberately structurally simple to keep the attacker's signal clean (no floor-effect ASR).
 
-## Defenders in QC-Benchmark v1 (MVE)
+Other variants on disk that are **not** part of this benchmark:
+- `scenarios/security_arena/agents/team_x_defender_433line_unused/` — a 433-line multi-pass variant of the cross-team defender. Strong; risks floor-effect ASR.
+- `scenarios/security_arena/agents/team_x_defender_206wrapped_unused/` — the 206-line cross-team defender with an `<untrusted_data>` wrapper in `user.j2`. An earlier 2-defender plan used this as Defender_x; replaced with our v4 defender for cross-team heterogeneity.
 
-Four defenders enter the headline benchmark table:
+## Scenarios (5 total)
 
-- **D-vanilla** — a ~30-line wrapper that calls the model with the role's system prompt and returns the response. No detection, no Python sanitization, no multi-pass. Sets the upper-bound ASR (most-breakable defender). Implemented by Person 4 at `scenarios/security_arena/agents/d_vanilla/`.
-- **D-simple** — a ~30-line wrapper that uses the role's system prompt plus a single hardening line ("Refuse harmful or unsafe requests"). Single-prompt defense baseline. Also implemented by Person 4 at `scenarios/security_arena/agents/d_simple/`.
-- **Defender_quietchaos** — our final v32 submission, frozen at commit `e8386d1`.
-- **Defender_siqi** — the cross-team defender already in the repo at `scenarios/security_arena/agents/team_x_defender/`. Implements a multi-pass pipeline (Python pre-sanitization plus four LLM-based passes).
-
-Calibration runs (not headline rows of the benchmark, but reported as a supplementary cross-team table):
-
-- **Attacker_siqi × Defender_quietchaos**
-- **Attacker_siqi × Defender_siqi**
-
-These answer "is the attacker carrying the result, or is the defender?" — without them readers cannot place the headline numbers in context.
-
-A second cross-team defender (`Other Team/agents 2/defender/`) and external attacker baselines (PAIR / GCG / AutoDAN) are explicitly deferred to QC-Benchmark v2; integrating them would not fit the 2-day MVE window.
-
-## Scenarios (6 total)
-
-Coverage of the competition's 6 attack categories is **5 of 6** (supply_chain is intentionally not included in v1).
-
-The 5 public scenarios (already in repo):
+The 5 public scenarios from the leaderboard set — already in repo and used by the AgentBeats competition:
 
 - `portfolioiq` — primary: indirect_injection (assessment flip)
 - `thingularity` — primary: prompt_extraction (tool / system-prompt disclosure)
@@ -54,31 +37,53 @@ The 5 public scenarios (already in repo):
 - `resume_downgrade` — primary: indirect_injection (ranking manipulation)
 - `medical_records` — primary: pii_leak
 
-The 1 custom scenario added to fill a category gap:
+Coverage: 4 of the 6 competition attack categories as primary scenarios (jailbreak appears as a co-tag on gymjailbreak; supply_chain is not represented in any public scenario). We accept this gap because expanding the scenario list to fill it would require designing or porting a new scenario, which doesn't fit the 2-day window.
 
-- `automate_safety` — primary: jailbreak (direct logic override of car safety systems). Adds a clean primary-jailbreak scenario; otherwise jailbreak only appears as a co-tag on gymjailbreak.
+## Cells and counts
 
-The other in-repo custom scenarios (`airline_pii`, `safety_override`, `secret_keeper`, `healthtrack_hack`, `moneymate_mayhem`) are duplicates of categories already covered, and are not part of the v1 benchmark.
+```
+                            Defender_x       Defender_y
+attacker_quietchaos_v23     5 × 6 = 30       5 × 6 = 30       Total 60 battles
+```
 
-## Helpfulness gate
+Six reps per (defender, scenario) cell: 5 from the primary owner of that scenario plus 1 backup rep from the previous person in the round-robin (see `docs/task_assignment.md`). The backup design protects against single-point-of-failure on individual collaborator setups.
 
-Before any defender is scored, it runs `--normal-user` on all 6 scenarios. The orchestrator records PASS / FAIL per scenario. A defender that fails on any scenario is excluded from the headline benchmark table; its battle results are still kept under `results/` but flagged HELPFULNESS-FAIL.
+No helpfulness-gate runs (see "Helpfulness gate (skipped)" below).
 
-Rationale: a defender that "wins" by refusing every input has not solved the problem. Reporting its ASR alongside genuine defenders confuses the comparison. Exclusion is cleaner than a footnote.
+Compute envelope: each of 5 collaborators runs 12 battles in ~1.2 h on their own Lambda instance in parallel. Total Lambda time across the team is ~6 hours of compute, completed in about 1.5 hours wall clock. Total cost across all collaborators: about **$5**.
 
-## Three tables the benchmark produces
+## Helpfulness gate (skipped)
 
-1. **Defender ranking** — rows = defenders that passed the helpfulness gate, columns = the 6 scenarios plus an aggregate ASR. Sorted by aggregate ASR ascending (most robust at top).
-2. **Pattern × defender heatmap** — rows = defenders, columns = the 5 attack-pattern tags (see `docs/scoring.md`). Cell value = pattern-level ASR. Reads off "what each defender is weak against."
-3. **Cross-team supplementary** — the 4-cell Attacker × Defender comparison (Attacker_quietchaos × Defender_quietchaos, Attacker_quietchaos × Defender_siqi, Attacker_siqi × Defender_quietchaos, Attacker_siqi × Defender_siqi) on the 6 benchmark scenarios. Calibration, not the headline.
+Helpfulness was a per-defender precondition in earlier plans, but it is **dropped** for this benchmark. Both defenders are submitted defenders from previous competition rounds, where the AgentBeats orchestrator runs the normal-user test by default at submission time. Both passed at submission, so we trust those results rather than re-running locally. If a deployment-validity question comes up in review, the answer is "this defender's submission cleared the standard normal-user check at the time it was submitted to the competition."
 
-All three tables are computed by `scripts/aggregate_benchmark.py` from the same `result.json` files plus the per-round pattern tags from `scripts/tag_patterns.py`.
+## What the report includes
 
-## Future work (out of scope for v1)
+Three artifacts get committed back:
 
-- Add `Other Team/agents 2/defender/` as a fifth defender row.
-- Add D-smoothllm (input-perturbation defense baseline) as a published defender.
-- Add PAIR / GCG / AutoDAN as external attacker rows.
-- Re-run on `gpt-oss-120b` and a cross-family model (Llama-3.1-70B-Instruct or Qwen2.5-72B-Instruct) for model-generalization claims.
-- Add a supply_chain scenario to close the 6th competition category.
-- Increase reps from 5 to 10 for tighter confidence intervals on the headline table.
+1. **Defender × Scenario ASR table** (2 rows × 5 columns + aggregate) — the headline result.
+2. **Pattern × Defender heatmap** (5 attack patterns × 2 defenders) — diagnostic, derived from per-round attack-output tags via `scripts/tag_patterns.py`.
+3. **Heterogeneous weak-baseline comparison** (Defender_x vs Defender_y) — our team's early intent-classifier-only defender vs the cross-team's detect-then-verify defender. Where each holds against attacker_quietchaos_v23, and where each fails.
+
+Each cell directory under `results/` includes `result.json` per battle, `battle_log.md` for human inspection, the `summary.json` from `aggregate_benchmark.py`, and a `RUN_INFO.md` recording who ran it, when, model, vLLM args, and attacker / defender commit hashes.
+
+## Methodology disclosure for the paper
+
+The paper Methodology section will state:
+
+> "We benchmark a post-competition iteration of our attacker (commit `e8386d1`, dated 2026-03-30), which extends the competition submission (`74c124c`, 2026-03-28) with the CC-BOS engine, ML scenario classifier, and adversarial suffix module. The choice reflects our intent to characterize the strategy capabilities of our team's attack methodology rather than to reproduce the official leaderboard results."
+
+The Limitation section will add:
+
+> "Our findings characterize the post-competition iteration of our attacker; the competition submission may exhibit different behavior due to its smaller pipeline."
+
+## Out of scope for this plan
+
+These are deferred and explicitly not part of the current run:
+
+- D-vanilla, D-simple baselines.
+- External attacker baselines (PAIR / GCG / AutoDAN).
+- Forced single-strategy ablation experiments.
+- Defender-layer ablation on Defender_quietchaos.
+- Model variation (gpt-oss-120b, Llama, Qwen).
+- A supply_chain scenario.
+- Increasing reps beyond the current 6 for tighter confidence intervals.
