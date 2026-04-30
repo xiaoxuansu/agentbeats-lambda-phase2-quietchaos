@@ -32,7 +32,9 @@ The classifier maps a scenario by inspecting `attack_goal + domain_description +
 
 ---
 
-## 2. Concrete attack patterns observed (Phase A pilot, attacker_quietchaos_v23 × the legacy 433-line cross-team defender (now archived at team_x_defender_433line_unused/))
+## 2. Concrete attack patterns observed (Phase A pilot)
+
+These observations are from the Phase A pilot (attacker_quietchaos_v23 against the legacy 433-line cross-team defender, now archived at `scenarios/security_arena/agents/team_x_defender_433line_unused/`).
 
 Each pattern below is taken verbatim from a `battle_log.md` round. Patterns repeat with sampling variation across rounds.
 

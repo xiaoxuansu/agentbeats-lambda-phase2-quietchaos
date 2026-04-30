@@ -2,6 +2,8 @@
 
 Generated: 2026-04-27 (smoke test in progress).
 
+> **⚠️ Naming caveat (added 2026-04-30)**: This document is a frozen Phase A historical snapshot. References to **"Defender_x"** in this document mean the now-archived 433-line cross-team multi-pass defender (preserved at `scenarios/security_arena/agents/team_x_defender_433line_unused/`), **NOT** the v1 plan's current Defender_x which is the Quiet Chaos v4 defender. For the current plan's naming and assignments, see `docs/benchmark_design.md` and `docs/task_assignment.md`.
+
 ## What's running
 
 A pilot 1-cell of the cross-team matrix:
