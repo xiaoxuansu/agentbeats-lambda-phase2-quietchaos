@@ -44,16 +44,22 @@ fi
 echo "✓ vLLM endpoint reachable"
 
 # --- 1. Run matrix ---
-SCENARIOS=(
-  "portfolioiq"
-  "thingularity"
-  "gymjailbreak"
-  "resume_downgrade"
-  "medical_records"
-)
-REPS=2
+# Env overrides: pass SCENARIOS as a space-separated string and REPS as an int.
+# Example: SCENARIOS="portfolioiq" REPS=5 bash scripts/run_smoke.sh
+if [ -n "${SCENARIOS+x}" ]; then
+  read -r -a SCENARIOS <<< "$SCENARIOS"
+else
+  SCENARIOS=(
+    "portfolioiq"
+    "thingularity"
+    "gymjailbreak"
+    "resume_downgrade"
+    "medical_records"
+  )
+fi
+: "${REPS:=2}"
 
-OUTROOT="results/cross_smoke/A_qc_vs_D_x"
+OUTROOT="${OUTROOT:-results/cross_smoke/A_qc_vs_D_x}"
 mkdir -p "$OUTROOT"
 
 START_TIME=$(date +%s)

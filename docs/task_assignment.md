@@ -59,17 +59,26 @@ For your main scenario `<M>` and backup scenario `<B>`, run four batches back-to
 
 ```bash
 # Main: 5 reps on each defender for your assigned scenario <M>
-SCENARIOS=("<M>") REPS=5 bash scripts/run_smoke.sh        # against Defender_x
-SCENARIOS=("<M>") REPS=5 bash scripts/run_smoke_dy.sh     # against Defender_y
+SCENARIOS="<M>" REPS=5 bash scripts/run_smoke.sh        # against Defender_x
+SCENARIOS="<M>" REPS=5 bash scripts/run_smoke_dy.sh     # against Defender_y
 
 # Backup: 1 rep on each defender for the next person's scenario <B>
-SCENARIOS=("<B>") REPS=1 bash scripts/run_smoke.sh        # against Defender_x
-SCENARIOS=("<B>") REPS=1 bash scripts/run_smoke_dy.sh     # against Defender_y
+SCENARIOS="<B>" REPS=1 OUTROOT="results/cross_smoke/A_qc_vs_D_x_backup" bash scripts/run_smoke.sh
+SCENARIOS="<B>" REPS=1 OUTROOT="results/cross_smoke/A_qc_vs_D_y_backup" bash scripts/run_smoke_dy.sh
 ```
 
-Adapt the SCENARIOS array and REPS in each script (or pass them as env vars if the script supports it). About 1.2 hours total compute for all four batches. Terminate the Lambda instance immediately after.
+The `SCENARIOS` env var is a space-separated string (single scenario in this case), `REPS` is an int, `OUTROOT` overrides the default output directory so backup runs land in a separate folder. About 1.2 hours total compute for all four batches. Terminate the Lambda instance immediately after.
 
-Commit main results under `results/Aqc_v23_vs_<X>/<M>_repN/` and `results/Aqc_v23_vs_<Y>/<M>_repN/`. Commit backup results under `results/Aqc_v23_vs_<X>/<B>_backup_rep1/` and `results/Aqc_v23_vs_<Y>/<B>_backup_rep1/` (the `_backup_` prefix flags them so the aggregator can merge them with the main 5 reps owned by the next person). A `RUN_INFO.md` at each cell root.
+Output directory layout (the scripts handle this automatically):
+
+```
+results/cross_smoke/A_qc_vs_D_x/<M>_rep1...rep5/      ← main, Defender_x
+results/cross_smoke/A_qc_vs_D_y/<M>_rep1...rep5/      ← main, Defender_y
+results/cross_smoke/A_qc_vs_D_x_backup/<B>_rep1/      ← backup, Defender_x
+results/cross_smoke/A_qc_vs_D_y_backup/<B>_rep1/      ← backup, Defender_y
+```
+
+Drop a `RUN_INFO.md` at each of these four directories with: who ran it, when, model name, exact vLLM args, attacker commit hash, defender path used, anomalies noticed.
 
 ### Person 1 — portfolioiq + write `tag_patterns.py`
 
@@ -116,7 +125,7 @@ Expect different scenarios to surface different patterns:
 ## Coordination items
 
 1. **Branch**: all work goes on `paper-experiments`. No commits to `main`.
-2. **Result directory naming**: `results/<cell-name>/<scenario>_repN/`. Example: `results/Aqc_vs_Dx/portfolioiq_rep1/`.
+2. **Result directory naming**: handled by the run scripts via the `OUTROOT` env var. Default `results/cross_smoke/A_qc_vs_D_x/` for Defender_x main, `results/cross_smoke/A_qc_vs_D_y/` for Defender_y main; backups go to `..._backup/` (set explicitly via `OUTROOT=...` for the backup runs as shown above).
 3. **Per-cell `RUN_INFO.md`**: at the root of each cell directory, a small markdown file noting model, vLLM args, max-model-len, attacker commit hash, defender commit hash, who ran it, when. Required for reproducibility.
 4. **Execution order**: Person 1 first (tooling unblocks aggregation). Persons 2, 3, 4 in parallel after tooling lands. Person 5 starts paper writing in parallel from hour 0.
 5. **API key hygiene**: every person uses their own Lambda API key, never shares it in chat or commits, and revokes it after their cell finishes.
