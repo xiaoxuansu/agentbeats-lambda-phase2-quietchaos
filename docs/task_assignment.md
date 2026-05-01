@@ -95,6 +95,24 @@ Compute: 10 battles on portfolioiq.
 
 Side task: `scripts/tag_patterns.py` (~80 lines). Reads a `result.json`, runs each round's `attack_output` through five regex / heuristic detectors (OPF, CCBOS, RFCM, FA, MD — see `docs/scoring.md`), and adds a `patterns: [...]` list to each `battle_log` entry. Idempotent. Once written, run it against your own portfolioiq battle data first to sanity-check (portfolioiq rounds should mostly tag as OPF and MD).
 
+#### Person 1 follow-on (P1-C, after Phase B main run): why portfolioiq was extended beyond the 5-rep plan
+
+Phase B's per-cell budget was 5 reps. After tagging Phase B data with the 5 v1 patterns, two findings forced an extension:
+
+1. **The 5-pattern taxonomy tagged only ~15% of winning rounds.** ~85% of attacker wins on portfolioiq and thingularity carried no tag from any of OPF/CCBOS/RFCM/FA/MD. Without new detectors, the planned `Pattern × Defender heatmap` was almost empty and not informative.
+2. **At 5 reps, the portfolioiq battle-level CI was [10%, 70%] vs [0%, 39%]** — way too wide to support any cross-pipeline claim. The IRR pattern in particular only had n=13 / n=16, and a "D_y blocks IRR" claim at those samples was on the wrong side of "publishable."
+
+Person 1 made two unplanned additions to the work:
+
+- **Two new detectors** added to `scripts/tag_patterns.py`: **CCFI** (Code-Completion Fill-In, observed in thingularity) and **IRR** (Inverted Risk Rubric, observed in portfolioiq). With 7 detectors, tag coverage of winning rounds went from ~15% to **100%** (14/14).
+- **portfolioiq extended from 5 to 10 reps × 2 defenders** (10 new battles, ~1.5 hr vLLM, ~$2). This collapsed the IRR round-level CI from D_x [18%, 64%] vs D_y [0%, 19%] (1pp overlap) to **D_x [13%, 45%] vs D_y [0%, 13%] (no overlap)** — IRR vs detect-then-verify pipeline is now publishable.
+
+Cost of the extension: ~$2 + 1.5 hr of one Lambda instance. Independent of teammate runs.
+
+A side effect of these additions was that per-scenario decomposition of the now-100%-tagged data revealed the original "attacker portfolio adapts to defender pipeline" framing was a pooling artifact — patterns are non-uniformly distributed across scenarios, and the real signal is `scenario × pipeline`, not `pattern × pipeline`. The paper's `qualitative_examples.md` was rewritten accordingly. **This correction is the most consequential output of the extension** because it would otherwise have been a methodologically weak claim in the submitted paper.
+
+Resource cost not borne by other team members and does not affect the round-robin backup design.
+
 ### Person 2 — thingularity + write `aggregate_benchmark.py`
 
 Compute: 10 battles on thingularity.
