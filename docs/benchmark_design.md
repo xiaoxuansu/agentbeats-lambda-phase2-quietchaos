@@ -61,7 +61,7 @@ Helpfulness was a per-defender precondition in earlier plans, but it is **droppe
 Three artifacts get committed back:
 
 1. **Defender × Scenario ASR table** (2 rows × 5 columns + aggregate) — the headline result.
-2. **Pattern × Defender heatmap** (5 attack patterns × 2 defenders) — diagnostic, derived from per-round attack-output tags via `scripts/tag_patterns.py`.
+2. **Pattern × Defender heatmap** (7 attack patterns × 2 defenders) — diagnostic, derived from per-round attack-output tags via `scripts/tag_patterns.py`. Patterns: OPF, CCBOS, RFCM, FA, MD (Phase A) + CCFI, IRR (Phase B additions; see `docs/scoring.md`).
 3. **Heterogeneous weak-baseline comparison** (Defender_x vs Defender_y) — our team's early intent-classifier-only defender vs the cross-team's detect-then-verify defender. Where each holds against attacker_quietchaos_v23, and where each fails.
 
 Each cell directory under `results/` includes `result.json` per battle, `battle_log.md` for human inspection, the `summary.json` from `aggregate_benchmark.py`, and a `RUN_INFO.md` recording who ran it, when, model, vLLM args, and attacker / defender commit hashes.

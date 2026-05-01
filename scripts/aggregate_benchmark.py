@@ -44,7 +44,7 @@ SCENARIOS = [
     "medical_records",
 ]
 
-PATTERNS = ["OPF", "CCBOS", "RFCM", "FA", "MD"]
+PATTERNS = ["OPF", "CCBOS", "RFCM", "FA", "MD", "CCFI", "IRR"]
 
 ROOT_DEFAULT = "results/cross_smoke"
 
