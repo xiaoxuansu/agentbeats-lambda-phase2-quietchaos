@@ -14,15 +14,15 @@
 | IMPDATA | 0% (n=2) | 57% (n=7) |
 | EMBEXT | 100% (n=1) | 100% (n=1) |
 | MULSTEP | n/a | 100% (n=1) |
-| STRSL | 17% (n=47) | 18% (n=39) |
+| STRSL | 0% (n=4) | 0% (n=8) |
 | CFLOOD | 33% (n=43) | 35% (n=43) |
 | PYTHENC | 0% (n=2) | 17% (n=6) |
 | NUMENC | n/a | n/a |
 | STEGO | n/a | n/a |
-| MANYS | 57% (n=7) | 40% (n=5) |
+| MANYS | n/a | n/a |
 | URGENT | n/a | n/a |
 | HYPOT | n/a | n/a |
 | HELPEXP | n/a | n/a |
 | DRDEC | n/a | 0% (n=1) |
-| CREATFMT | n/a | 0% (n=1) |
+| CREATFMT | n/a | n/a |
 | WALK | 47% (n=15) | 55% (n=11) |
