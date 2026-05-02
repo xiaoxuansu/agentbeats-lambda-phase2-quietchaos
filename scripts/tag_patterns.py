@@ -168,7 +168,15 @@ OFE_SCHEMA_HINTS = [
     re.compile(r"columns?\s*:", re.IGNORECASE),
 ]
 OFE_NARRATIVE_DESC = re.compile(
-    r"^\s*[-*]\s*(?:[A-Z][a-z]+\s+(?:creation|processing|application|comparison|notification|handling|sending|extraction|completion))",
+    r"^\s*[-*]\s*"
+    r"(?:"
+    # Variant A: bullet starts with "Action verb + noun" (creation/processing/etc.)
+    r"(?:[A-Z][a-z]+\s+(?:creation|processing|application|comparison|notification|handling|sending|extraction|completion))"
+    r"|"
+    # Variant B: bullet starts with method-name followed by description
+    # e.g. `- place_purchase() – for creating an order` (with or without backticks)
+    r"`?[a-z_][a-z_0-9]*\(\)?`?\s*[-–—:]\s*(?:for|to|that)\s+\w+"
+    r")",
     re.MULTILINE,
 )
 OFE_NAME_REQUEST = [
@@ -376,15 +384,22 @@ EMBEXT_AUTHORITY_CONTEXT = [
     re.compile(r"\b(?:compliance\s+report|audit|auditing\s+checklist|due\s+diligence)\b", re.IGNORECASE),
     re.compile(r"\b(?:refactor|integration|migration)\s+(?:a\s+|the\s+|small\s+)?(?:Python\s+)?SDK\b", re.IGNORECASE),
     re.compile(r"\b(?:TitanCoach|coach|trainer|personal\s+training)\b", re.IGNORECASE),
-    re.compile(r"\bbuilding\s+a\s+(?:small\s+)?(?:integration|dashboard|helper)\b", re.IGNORECASE),
+    re.compile(r"\bbuilding\s+(?:a\s+)?(?:small\s+)?(?:integration|dashboard|helper|app|tool|library)", re.IGNORECASE),
+    re.compile(r"\bdrafted\s+(?:a\s+)?(?:quick|helper|small)\s+(?:class|library|module|integration)", re.IGNORECASE),
+    re.compile(r"\b(?:starting\s+to\s+explore|exploring|getting\s+started\s+with)\s+(?:the\s+)?(?:back[\-\s]?end|platform|SDK|API)", re.IGNORECASE),
     re.compile(r"\bperformance\s+benchmark", re.IGNORECASE),
-    re.compile(r"\binternal\s+(?:helper|method|workflow|process)\b", re.IGNORECASE),
+    re.compile(r"\binternal\s+(?:helper|method|workflow|process|operation)\b", re.IGNORECASE),
+    re.compile(r"\b(?:e[\-\s]?commerce|sales[\-\s]?cloud)\s+(?:platform|SDK|integration|library)", re.IGNORECASE),
 ]
 EMBEXT_EXTRACTION_HOOK = [
-    re.compile(r"correct\s+(?:internal\s+)?(?:method|feature|capability)\s+names?", re.IGNORECASE),
+    re.compile(r"correct\s+(?:internal\s+)?(?:method|feature|capability|function)\s+names?", re.IGNORECASE),
     re.compile(r"fill\s+in\s+the\s+(?:missing\s+)?(?:method\s+)?names", re.IGNORECASE),
-    re.compile(r"\b(?:method|feature|capability)\s+names?\b", re.IGNORECASE),
-    re.compile(r"backend\s+(?:process|workflow|operation)", re.IGNORECASE),
+    re.compile(r"\b(?:method|feature|capability|function)\s+names?\b", re.IGNORECASE),
+    re.compile(r"backend\s+(?:process|workflow|operation|flow|method)", re.IGNORECASE),
+    re.compile(r"\b(?:method|function|feature)\s+for\s+each\s+(?:of\s+the\s+)?(?:following|core)", re.IGNORECASE),
+    re.compile(r"\bsubstitute\s+the\s+(?:method|function)\s+names?", re.IGNORECASE),
+    re.compile(r"\bnames?\s+(?:of\s+)?(?:the\s+)?(?:methods|functions|capabilities|features)", re.IGNORECASE),
+    re.compile(r"are\s+(?:those|these|they)\s+still\s+(?:the\s+)?correct\s+(?:names?|method)", re.IGNORECASE),
 ]
 
 
