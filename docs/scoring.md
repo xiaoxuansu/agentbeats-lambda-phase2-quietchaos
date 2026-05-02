@@ -75,7 +75,7 @@ Future work could add cross-round detectors (compare round n to round n-1) to cl
 
 The v4 detectors are **surface-form regex**, not validated semantic classifiers. Concretely:
 
-1. Detector hits report "this round's text matches these specific lexical patterns", **not** "this round embodies this attack mechanism". The attacker's Generator LLM produces wide surface-form variation across scenarios; our regex only matches the specific lexical shapes we have observed in the 70-battle dataset.
+1. Detector hits report "this round's text matches these specific lexical patterns", **not** "this round embodies this attack mechanism". The attacker's Generator LLM produces wide surface-form variation across scenarios; our regex only matches the specific lexical shapes we have observed in the 82-battle dataset.
 2. Detector thresholds (e.g. CRINJ length ≥ 400, CFLOOD length ≥ 1500, MANYS ≥ 3 examples) are ad-hoc; we have not run sensitivity analysis on the thresholds.
 3. The pattern-level ASR numbers reported in `results/tables/pattern_defender_heatmap.md` are containment rates ("of rounds carrying tag X, what fraction are in winning battles"), not causal attributions of mechanism contribution. Multi-tagged rounds count once for each tag, inflating tag-level statistics for co-occurring patterns.
 
