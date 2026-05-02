@@ -3,6 +3,7 @@
 
 | Pattern | Defender_x | Defender_y |
 |---|---|---|
+<<<<<<< Updated upstream
 | FSS | 33% (n=46) | 14% (n=42) |
 | CCBOS | 60% (n=5) | 0% (n=4) |
 | CRINJ | 43% (n=63) | 39% (n=57) |
@@ -26,3 +27,12 @@
 | DRDEC | n/a | 0% (n=1) |
 | CREATFMT | n/a | n/a |
 | WALK | 47% (n=15) | 55% (n=11) |
+=======
+| OPF | 31% (n=45) | 12% (n=41) |
+| CCBOS | 60% (n=5) | 0% (n=6) |
+| RFCM | 50% (n=18) | 88% (n=16) |
+| FA | 0% (n=8) | 0% (n=3) |
+| MD | 29% (n=28) | 29% (n=31) |
+| CCFI | 50% (n=2) | 50% (n=4) |
+| IRR | 26% (n=27) | 0% (n=30) |
+>>>>>>> Stashed changes
