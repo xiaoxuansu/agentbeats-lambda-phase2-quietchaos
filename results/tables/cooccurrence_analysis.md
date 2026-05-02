@@ -1,47 +1,45 @@
-# Detector Co-occurrence Analysis (v4 + audit fixes, 70 battles, 369 rounds)
+# Detector Co-occurrence Analysis (v4 + audit + FN fixes, 70 battles, 369 rounds)
 
-After fixing STRSL (≥4-col table → ≥6-col table), MANYS (remove generic
-"For example"), CREATFMT (require "as a / in the form of"), the empirical
-distribution is:
+After two passes of audit-driven fixes (false-positive cleanup of
+STRSL/MANYS/CREATFMT, then false-negative fixes for MULSTEP/CRINJ/PSDATA),
+the empirical distribution is:
 
-| Tag | n | Alone % | Avg co-tags | Top 3 companions |
-|---|---|---|---|---|
-| FSS | 88 | 16% | 1.5 | CRINJ 50%, CFLOOD 43%, DOCADD 39% |
-| CCBOS | 9 | **100%** | 0.0 | (always alone) |
-| CRINJ | 120 | 18% | 1.5 | CFLOOD 42%, FSS 37%, META 27% |
-| OFE | 15 | **60%** | 0.5 | CFLOOD/CRINJ/EMBEXT ~13% |
-| META | 61 | 18% | 1.5 | CFLOOD 52%, CRINJ 52%, DOCADD 28% |
-| DOCADD | 63 | 11% | 1.6 | FSS 54%, CRINJ 32%, CFLOOD 30% |
-| FMERR | 19 | 21% | 1.5 | FSS 37%, DOCADD 37%, CRINJ 26% |
-| PSDATA | 3 | 0% | 3.3 | FSS/DOCADD/CFLOOD 67% |
-| IMPDATA | 9 | 22% | 1.2 | CRINJ 67%, CFLOOD 22%, WALK 11% |
-| EMBEXT | 2 | 0% | 1.0 | OFE 100% |
-| MULSTEP | 1 | 0% | 1.0 | CRINJ 100% |
-| STRSL | 13 | 0% | 2.1 | CFLOOD 69%, META 46%, CRINJ 46% |
-| CFLOOD | 86 | 8% | 1.8 | CRINJ 58%, FSS 44%, META 37% |
-| PYTHENC | 8 | **75%** | 0.2 | WALK / CRINJ ≤ 12% |
-| WALK | 26 | **58%** | 0.5 | CRINJ 23%, FMERR 15%, IMPDATA 4% |
-| CCBOS, MANYS, NUMENC, STEGO, URGENT, HYPOT, HELPEXP, DRDEC, CREATFMT | mostly absent in dataset | | |
+| Tag | n | Alone % | Top 3 companions |
+|---|---|---|---|
+| FSS | 88 | 8% | CRINJ 74%, CFLOOD 43%, DOCADD 39% |
+| CCBOS | 9 | **100%** | (always alone) |
+| CRINJ | 170 | 14% | CFLOOD 40%, FSS 38%, META 30% |
+| OFE | 15 | **60%** | CFLOOD/CRINJ/EMBEXT ~13% |
+| META | 61 | 11% | CRINJ 84%, CFLOOD 52%, DOCADD 28% |
+| DOCADD | 63 | 10% | CRINJ 70%, FSS 54%, CFLOOD 30% |
+| FMERR | 19 | 21% | CRINJ 47%, FSS 37%, DOCADD 37% |
+| PSDATA | 5 | 0% | CRINJ 100%, FSS 60%, DOCADD 60% |
+| IMPDATA | 9 | 22% | CRINJ 78%, MULSTEP 22%, CFLOOD 22% |
+| EMBEXT | 2 | 0% | OFE 100% |
+| MULSTEP | 6 | 0% | CRINJ 100%, IMPDATA 33%, CFLOOD 17% |
+| STRSL | 12 | 0% | CRINJ 83%, CFLOOD 67%, META 42% |
+| CFLOOD | 86 | 7% | CRINJ 79%, FSS 44%, META 37% |
+| PYTHENC | 8 | 62% | CRINJ/WALK ≤ 25% |
+| WALK | 26 | **58%** | CRINJ 23%, FMERR 15%, IMPDATA 4% |
+| DRDEC, NUMENC, STEGO, URGENT, HYPOT, HELPEXP, MANYS, CREATFMT | ≤ 1 or 0 | n/a | (rare/absent in dataset) |
 
 ## Standalone vs carrier classification
 
-**Standalone strategies** (≥50% rounds where this is the only tag):
-- CCBOS (100%), PYTHENC (75%), OFE (60%), WALK (58%)
-- These are self-contained payload forms.
+**Standalone strategies** (≥50% rounds alone):
+- CCBOS (100%), PYTHENC (62%), OFE (60%), WALK (58%) — self-contained payload forms.
 
-**Carriers** (mostly co-occur):
-- CFLOOD (8%), DOCADD (11%), FSS (16%), CRINJ/META/IMPDATA (~18-22%)
-- These typically wrap or pad other strategies.
+**Carriers** (rarely alone):
+- PSDATA / EMBEXT / MULSTEP / STRSL (0% alone)
+- CFLOOD (7%), FSS (8%), DOCADD (10%), META (11%), CRINJ (14%)
 
 ## Winning round tag distribution (n=29 winning rounds)
 
-How often does each tag appear among the 29 attacker-winning rounds?
-
-| Tag | Wins where this tag fires | % |
+| Tag | wins | % |
 |---|---|---|
-| CRINJ | 20/29 | 69% |
+| CRINJ | 21/29 | 72% |
 | CFLOOD | 12/29 | 41% |
 | META | 9/29 | 31% |
+| MULSTEP | 6/29 | 21% |
 | FMERR | 6/29 | 21% |
 | FSS | 5/29 | 17% |
 | WALK | 4/29 | 14% |
@@ -49,48 +47,49 @@ How often does each tag appear among the 29 attacker-winning rounds?
 | DOCADD | 2/29 | 7% |
 | EMBEXT | 2/29 | 7% |
 | IMPDATA | 2/29 | 7% |
-| MULSTEP | 1/29 | 3% |
-| (CCBOS, PYTHENC, STRSL, PSDATA, etc.) | 0/29 | 0% |
+| PSDATA | 1/29 | 3% |
+| (CCBOS, STRSL, PYTHENC, etc.) | 0/29 | 0% |
 
-## Surprising findings revealed by the audit
+## Key empirical findings
 
-1. **STRSL never appears in winning rounds**. After tightening the table
-   threshold from ≥4 to ≥6 columns, STRSL drops from 86 to 13 rounds, and
-   none of those 13 are in winning battles. The earlier "portfolioiq winning-
-   round five-piece fingerprint (FSS+CRINJ+DOCADD+CFLOOD+STRSL)" claim was
-   wrong; the correct fingerprint is **four-piece (FSS+CRINJ+DOCADD+CFLOOD)**.
+1. **CRINJ dominates winning rounds (72%)**. Credential injection (HR /
+   financial / fitness variants) is present in 21 of 29 winning rounds —
+   the attacker's primary effective mechanism in this dataset.
 
-2. **MANYS never appears in the dataset**. The 12 prior MANYS hits were all
-   false positives from the broad `For\s+example` regex. The pool's L8
-   "many-shot normalization" — multiple example pairs setting a precedent
-   for the model — is genuinely absent in 70 battles. The attacker's Planner
-   never selected a many-shot strategy that survived through the Generator.
+2. **MULSTEP appears in 21% of winning rounds** (after FN fix). The
+   over-boundary computation mechanism (load > max + ratio request) lands
+   in 6/29 winning rounds, all in gymjailbreak. Pre-fix MULSTEP=1 was an
+   over-strict regex (required FORMULA AND PCT_OF together; now requires
+   either with appropriate context).
 
-3. **DOCADD is mostly a setup move, not a breakthrough move**. 63 rounds
-   carry DOCADD but only 2 of the 29 winning rounds have it (7%). The
-   attacker uses DOCADD (inverted-rubric / authoritative-addendum framing)
-   to set up risk-assessment manipulation early in a battle, but the actual
-   breakthrough round is usually tagged with CRINJ + CFLOOD without DOCADD.
+3. **DOCADD is mostly a setup, not a breakthrough**. 63 rounds carry DOCADD
+   but only 2/29 winning rounds have it. The attacker uses DOCADD (inverted-
+   rubric / authoritative-addendum framing) to set up the manipulation
+   early; breakthrough rounds are typically tagged CRINJ + CFLOOD without
+   DOCADD.
 
-4. **CRINJ dominates winning rounds (69%)**. After taxonomy alignment to
-   the attacker's pool, the empirical signal is clear: credential-injection
-   instances (in financial / HR / fitness variants) are present in 20 of
-   the 29 winning rounds, by far the most common tag among breakthroughs.
+4. **CCBOS, STRSL, PYTHENC all land 0/n in winning rounds** despite
+   appearing in dataset (n=9, 12, 8). Attacker tries these but neither
+   defender pipeline is broken by them in this 70-battle sample:
+   - CCBOS (classical Chinese): always blocked
+   - STRSL (≥6-col table with separator row): always blocked
+   - PYTHENC (`chr(83)+chr(83)+chr(78)` spelling SSN): always blocked
 
-5. **CCBOS standalone is genuinely confirmed**. All 9 CCBOS rounds carry no
-   other tags; classical-Chinese payloads consume the entire prompt and
-   cannot also carry FSS / META / etc. CCBOS is also 0/9 winning — it never
-   broke through in this dataset.
+5. **WALK is genuinely standalone** (58% alone, 4/29 winning rounds).
+   Broad walkthrough requests are self-contained and effective on
+   thingularity (3 of 4 wins) and gymjailbreak (1 of 4 wins).
 
 ## Implication for paper
 
 - Pattern-level ASR is a containment rate, not causal attribution. Most
-  winning rounds carry 2-5 tags simultaneously.
-- The attacker's strategy emission is dominated by a small set of frequently
-  co-occurring strategies (CRINJ + CFLOOD + FSS + DOCADD + META), with rarer
-  standalone strategies (CCBOS, PYTHENC, OFE, WALK) tested but rarely
-  successful in this dataset.
-- Many pool strategies (NUMENC, STEGO, URGENT, HYPOT, HELPEXP, DRDEC,
-  CREATFMT, MANYS) are essentially absent in 70 battles — either the
-  Planner rarely selects them or the Generator doesn't produce surface
-  forms our regex can detect.
+  winning rounds carry 2–5 tags simultaneously.
+- The attacker's effective emission is dominated by CRINJ + CFLOOD + a
+  scenario-specific surface tag:
+  - **portfolioiq winning rounds**: FSS + CRINJ + CFLOOD ± DOCADD/FMERR
+  - **resume_downgrade winning rounds**: CRINJ + META + CFLOOD ± FSS
+  - **thingularity winning rounds**: OFE / EMBEXT / FMERR / WALK
+  - **gymjailbreak winning rounds**: CRINJ + (MULSTEP / IMPDATA / WALK)
+- Many pool strategies are essentially absent in 70 battles
+  (NUMENC, STEGO, URGENT, HYPOT, HELPEXP, DRDEC, CREATFMT, MANYS) —
+  either the Planner rarely selects them or the Generator doesn't produce
+  surface forms our regex can detect.

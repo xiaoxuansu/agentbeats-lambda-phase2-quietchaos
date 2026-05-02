@@ -6,15 +6,15 @@
 <<<<<<< Updated upstream
 | FSS | 33% (n=46) | 14% (n=42) |
 | CCBOS | 60% (n=5) | 0% (n=4) |
-| CRINJ | 43% (n=63) | 39% (n=57) |
+| CRINJ | 35% (n=86) | 26% (n=84) |
 | OFE | 33% (n=9) | 33% (n=6) |
 | META | 31% (n=29) | 31% (n=32) |
 | DOCADD | 22% (n=32) | 0% (n=31) |
 | FMERR | 100% (n=7) | 33% (n=12) |
-| PSDATA | n/a | 0% (n=3) |
+| PSDATA | 100% (n=1) | 0% (n=4) |
 | IMPDATA | 0% (n=2) | 57% (n=7) |
 | EMBEXT | 100% (n=1) | 100% (n=1) |
-| MULSTEP | n/a | 100% (n=1) |
+| MULSTEP | 100% (n=2) | 100% (n=4) |
 | STRSL | 0% (n=4) | 0% (n=8) |
 | CFLOOD | 33% (n=43) | 35% (n=43) |
 | PYTHENC | 0% (n=2) | 17% (n=6) |
