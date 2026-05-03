@@ -3,16 +3,22 @@
 # Native PowerShell version of scripts/run_smoke_dlatest.sh for Windows users.
 #
 # Env overrides:
-#   MODEL      Shared LLM endpoint for attacker, defender, and normal_user.
-#              Default: openai/gpt-oss-20b
-#   SCENARIOS  Space-separated scenario list.
-#   REPS       Number of reps per scenario.
-#   OUTROOT    Output directory. Set this per model when running a sweep.
-#   TMPROOT    Temporary TOML output directory.
+#   MODEL              Shared fallback for attacker, defender, and normal_user.
+#                      Default: openai/gpt-oss-20b
+#   ATTACKER_MODEL     Attacker model override. Defaults to MODEL.
+#   DEFENDER_MODEL     Defender model override. Defaults to MODEL.
+#   NORMAL_USER_MODEL  Normal-user model override. Defaults to MODEL.
+#   SCENARIOS          Space-separated scenario list.
+#   REPS               Number of reps per scenario.
+#   OUTROOT            Output directory. Set this per model when running a sweep.
+#   TMPROOT            Temporary TOML output directory.
 
 [CmdletBinding()]
 param(
     [string]$Model = $env:MODEL,
+    [string]$AttackerModel = $env:ATTACKER_MODEL,
+    [string]$DefenderModel = $env:DEFENDER_MODEL,
+    [string]$NormalUserModel = $env:NORMAL_USER_MODEL,
     [string]$Scenarios = $env:SCENARIOS,
     [int]$Reps = $(if ($env:REPS) { [int]$env:REPS } else { 2 }),
     [string]$OutRoot = $env:OUTROOT,
@@ -56,6 +62,21 @@ function Load-DotEnv {
     }
 }
 
+function Set-AgentModel {
+    param(
+        [string]$Content,
+        [string]$Module,
+        [string]$AgentModel
+    )
+
+    $escapedModule = [regex]::Escape($Module)
+    $pattern = "(cmd\s*=\s*`"[^`"]*$escapedModule[^`"]*--model\s+)[^`"\s]+"
+    return [regex]::Replace($Content, $pattern, {
+        param($match)
+        $match.Groups[1].Value + $AgentModel
+    })
+}
+
 Load-DotEnv ".env"
 
 if (-not $env:OPENAI_BASE_URL) {
@@ -88,6 +109,15 @@ Write-Host "OpenAI-compatible endpoint reachable"
 
 if (-not $Model) {
     $Model = "openai/gpt-oss-20b"
+}
+if (-not $AttackerModel) {
+    $AttackerModel = $Model
+}
+if (-not $DefenderModel) {
+    $DefenderModel = $Model
+}
+if (-not $NormalUserModel) {
+    $NormalUserModel = $Model
 }
 if (-not $OutRoot) {
     $OutRoot = "results/cross_smoke/A_qc_vs_D_latest"
@@ -125,7 +155,9 @@ foreach ($scenario in $scenarioList) {
     $content = Get-Content -LiteralPath $baseToml -Raw
     $content = $content -replace "attacker_quietchaos_v23 vs Defender_x.*", "attacker_quietchaos_v23 vs Defender_latest (strongest submitted defender)"
     $content = $content -replace "scenarios\.security_arena\.agents\.quietchaos_v4_defender\.agent", "scenarios.security_arena.agents.defender.agent"
-    $content = $content.Replace("--model openai/gpt-oss-20b", "--model $Model")
+    $content = Set-AgentModel $content "scenarios.security_arena.agents.attacker.agent" $AttackerModel
+    $content = Set-AgentModel $content "scenarios.security_arena.agents.defender.agent" $DefenderModel
+    $content = Set-AgentModel $content "scenarios.security_arena.agents.normal_user.agent" $NormalUserModel
 
     $tomlFullPath = [System.IO.Path]::GetFullPath($toml)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

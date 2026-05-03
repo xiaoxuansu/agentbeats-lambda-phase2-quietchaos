@@ -9,11 +9,14 @@
 # maintaining five near-duplicate scenario files.
 #
 # Env overrides:
-#   MODEL      Shared LLM endpoint for attacker, defender, and normal_user.
-#              Default: openai/gpt-oss-20b
-#   SCENARIOS  Space-separated scenario list.
-#   REPS       Number of reps per scenario.
-#   OUTROOT    Output directory. Set this per model when running a sweep.
+#   MODEL              Shared fallback for attacker, defender, and normal_user.
+#                      Default: openai/gpt-oss-20b
+#   ATTACKER_MODEL     Attacker model override. Defaults to MODEL.
+#   DEFENDER_MODEL     Defender model override. Defaults to MODEL.
+#   NORMAL_USER_MODEL  Normal-user model override. Defaults to MODEL.
+#   SCENARIOS          Space-separated scenario list.
+#   REPS               Number of reps per scenario.
+#   OUTROOT            Output directory. Set this per model when running a sweep.
 
 set -euo pipefail
 
@@ -57,6 +60,9 @@ else
 fi
 : "${REPS:=2}"
 : "${MODEL:=openai/gpt-oss-20b}"
+: "${ATTACKER_MODEL:=$MODEL}"
+: "${DEFENDER_MODEL:=$MODEL}"
+: "${NORMAL_USER_MODEL:=$MODEL}"
 
 OUTROOT="${OUTROOT:-results/cross_smoke/A_qc_vs_D_latest}"
 TMPROOT="${TMPROOT:-results/tmp/dlatest_tomls}"
@@ -75,11 +81,34 @@ for scenario in "${SCENARIOS[@]}"; do
     exit 1
   fi
 
-  sed \
-    -e 's/attacker_quietchaos_v23 vs Defender_x.*/attacker_quietchaos_v23 vs Defender_latest (strongest submitted defender)/' \
-    -e 's/scenarios\.security_arena\.agents\.quietchaos_v4_defender\.agent/scenarios.security_arena.agents.defender.agent/g' \
-    -e "s/--model openai\/gpt-oss-20b/--model ${MODEL//\//\\/}/g" \
-    "$BASE_TOML" > "$TOML"
+  python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+base_toml, toml, attacker_model, defender_model, normal_user_model = sys.argv[1:]
+content = Path(base_toml).read_text(encoding="utf-8")
+content = re.sub(
+    r"attacker_quietchaos_v23 vs Defender_x.*",
+    "attacker_quietchaos_v23 vs Defender_latest (strongest submitted defender)",
+    content,
+)
+content = content.replace(
+    "scenarios.security_arena.agents.quietchaos_v4_defender.agent",
+    "scenarios.security_arena.agents.defender.agent",
+)
+
+
+def set_agent_model(content: str, module: str, model: str) -> str:
+    pattern = rf'(cmd\s*=\s*"[^"]*{re.escape(module)}[^"]*--model\s+)[^"\s]+'
+    return re.sub(pattern, lambda match: match.group(1) + model, content)
+
+
+content = set_agent_model(content, "scenarios.security_arena.agents.attacker.agent", attacker_model)
+content = set_agent_model(content, "scenarios.security_arena.agents.defender.agent", defender_model)
+content = set_agent_model(content, "scenarios.security_arena.agents.normal_user.agent", normal_user_model)
+Path(toml).write_text(content, encoding="utf-8")
+PY
 
   for rep in $(seq 1 "$REPS"); do
     COUNT=$((COUNT + 1))
