@@ -95,6 +95,24 @@ def parse_toml(scenario_path: str) -> dict:
     }
 
 
+def command_args(cmd: str) -> list[str]:
+    args = shlex.split(cmd)
+    if args and Path(args[0]).name.lower() in {"python", "python.exe", "python3", "python3.exe"}:
+        args[0] = sys.executable
+    return args
+
+
+def stop_process(proc: subprocess.Popen, sig: int) -> None:
+    if os.name == "nt":
+        if sig == signal.SIGTERM:
+            proc.terminate()
+        else:
+            proc.kill()
+        return
+
+    os.killpg(proc.pid, sig)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run agent scenario")
     parser.add_argument("scenario", help="Path to scenario TOML file")
@@ -104,6 +122,9 @@ def main():
                         help="Start agent servers only without running evaluation")
     parser.add_argument("--normal-user", action="store_true",
                         help="Run normal user helpfulness test instead of adversarial battle")
+    parser.add_argument("--startup-timeout", type=int,
+                        default=int(os.getenv("AGENTBEATS_STARTUP_TIMEOUT", "30")),
+                        help="Seconds to wait for agent servers to become ready")
     args = parser.parse_args()
 
     cfg = parse_toml(args.scenario)
@@ -121,7 +142,7 @@ def main():
     try:
         # start participant agents
         for p in cfg["participants"]:
-            cmd_args = shlex.split(p.get("cmd", ""))
+            cmd_args = command_args(p.get("cmd", ""))
             if cmd_args:
                 print(f"Starting {p['role']} at {p['host']}:{p['port']}")
                 procs.append(subprocess.Popen(
@@ -133,7 +154,7 @@ def main():
                 ))
 
         # start host
-        green_cmd_args = shlex.split(cfg["green_agent"].get("cmd", ""))
+        green_cmd_args = command_args(cfg["green_agent"].get("cmd", ""))
         if green_cmd_args:
             print(f"Starting green agent at {cfg['green_agent']['host']}:{cfg['green_agent']['port']}")
             procs.append(subprocess.Popen(
@@ -145,7 +166,7 @@ def main():
             ))
 
         # Wait for all agents to be ready
-        if not asyncio.run(wait_for_agents(cfg)):
+        if not asyncio.run(wait_for_agents(cfg, timeout=args.startup_timeout)):
             print("Error: Not all agents became ready. Exiting.")
             return
 
@@ -177,14 +198,14 @@ def main():
         for p in procs:
             if p.poll() is None:
                 try:
-                    os.killpg(p.pid, signal.SIGTERM)
+                    stop_process(p, signal.SIGTERM)
                 except ProcessLookupError:
                     pass
         time.sleep(1)
         for p in procs:
             if p.poll() is None:
                 try:
-                    os.killpg(p.pid, signal.SIGKILL)
+                    stop_process(p, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
 
