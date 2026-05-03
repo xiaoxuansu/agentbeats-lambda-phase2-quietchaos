@@ -754,7 +754,13 @@ class Attacker(AgentExecutor):
             model=self.model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
         )
-        content = response.choices[0].message.content
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            logger.warning("LLM response contained no choices; using fallback path")
+            return ""
+
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None)
         return content if content is not None else ""
 
     def _trace_call(self, round_num: int, call_name: str,

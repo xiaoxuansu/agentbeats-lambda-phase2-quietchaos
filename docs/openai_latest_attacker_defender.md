@@ -116,6 +116,7 @@ $env:ATTACKER_MODEL = "anthropic/claude-3.5-sonnet"
 $env:DEFENDER_MODEL = "openai/gpt-5.5"
 $env:NORMAL_USER_MODEL = "openai/gpt-5.5"
 $env:SCENARIOS = "medical_records"
+$env:SHOW_LOGS = "1" 
 $env:REPS = "1"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 ```
@@ -149,6 +150,7 @@ $env:ATTACKER_MODEL = "anthropic/claude-3.5-sonnet"
 $env:DEFENDER_MODEL = "gpt-5.5"
 $env:NORMAL_USER_MODEL = "gpt-5.5"
 $env:SCENARIOS = "medical_records"
+$env:SHOW_LOGS = "1" 
 $env:REPS = "1"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 ```
@@ -233,6 +235,7 @@ Windows PowerShell:
 ```powershell
 $env:MODEL = "gpt-5.5"
 $env:REPS = "10"
+$env:SHOW_LOGS = "1" 
 $env:OUTROOT = "results/model_sweep/gpt_5_5/cross_smoke/A_qc_vs_D_latest"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 Remove-Item Env:MODEL, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue
@@ -288,6 +291,7 @@ Windows PowerShell:
 $env:MODEL = "gpt-5.5"
 $env:SCENARIOS = "medical_records"
 $env:REPS = "10"
+$env:SHOW_LOGS = "1" 
 $env:OUTROOT = "results/model_sweep/gpt_5_5_medical/cross_smoke/A_qc_vs_D_latest"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 Remove-Item Env:MODEL, Env:SCENARIOS, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue
@@ -314,6 +318,7 @@ Windows PowerShell:
 ```powershell
 $env:MODEL = "gpt-5.5"
 $env:REPS = "1"
+$env:SHOW_LOGS = "1" 
 $env:OUTROOT = "results/model_sweep/gpt_5_5/cross_smoke/A_qc_vs_D_latest"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 Remove-Item Env:MODEL, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue
@@ -335,6 +340,7 @@ Windows PowerShell:
 ```powershell
 $env:MODEL = "gpt-5.4-mini"
 $env:REPS = "1"
+$env:SHOW_LOGS = "1" 
 $env:OUTROOT = "results/model_sweep/gpt_5_4_mini/cross_smoke/A_qc_vs_D_latest"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 Remove-Item Env:MODEL, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue

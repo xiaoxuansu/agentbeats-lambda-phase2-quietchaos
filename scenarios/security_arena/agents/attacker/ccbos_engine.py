@@ -948,7 +948,13 @@ def ccbos_generate_one(intention: str, original_query: str, fly: dict,
             ],
             max_tokens=1000,
         )
-        raw = response.choices[0].message.content or ""
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            logger.warning("CC-BOS: LLM response contained no choices")
+            raw = ""
+        else:
+            message = getattr(choices[0], "message", None)
+            raw = getattr(message, "content", None) or ""
         logger.debug("CC-BOS CHAT_TEMPLATE raw (200chars): %s", raw[:200])
 
         # Normalize full-width colons
