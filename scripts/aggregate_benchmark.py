@@ -3,7 +3,9 @@
 Aggregate Phase B benchmark results into ASR tables and a heatmap.
 
 Reads result.json files under results/cross_smoke/A_qc_vs_D_x{,_backup}/ and
-results/cross_smoke/A_qc_vs_D_y{,_backup}/, computes:
+results/cross_smoke/A_qc_vs_D_y{,_backup}/, plus the optional
+results/cross_smoke/A_qc_vs_D_latest{,_backup}/ strongest-defender row,
+computes:
 
   1. Defender × Scenario ASR table (with 95% CI)
   2. Pattern × Defender ASR heatmap (requires patterns added by tag_patterns.py)
@@ -34,6 +36,8 @@ DEFENDER_CELLS = {
     "A_qc_vs_D_x_backup": "Defender_x",  # backup reps merge into the same cell
     "A_qc_vs_D_y": "Defender_y",
     "A_qc_vs_D_y_backup": "Defender_y",
+    "A_qc_vs_D_latest": "Defender_latest",
+    "A_qc_vs_D_latest_backup": "Defender_latest",
 }
 
 SCENARIOS = [

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Smoke test: A_qc (v23 attacker) vs Defender_latest (strongest submitted defender).
+#
+# This script mirrors run_smoke.sh/run_smoke_dy.sh, but writes to:
+#   results/cross_smoke/A_qc_vs_D_latest/<scenario>_rep<N>/result.json
+#
+# It derives temporary TOMLs from the Defender_x TOMLs and swaps the defender
+# module to scenarios.security_arena.agents.defender.agent. This avoids
+# maintaining five near-duplicate scenario files.
+#
+# Env overrides:
+#   MODEL      Shared LLM endpoint for attacker, defender, and normal_user.
+#              Default: openai/gpt-oss-20b
+#   SCENARIOS  Space-separated scenario list.
+#   REPS       Number of reps per scenario.
+#   OUTROOT    Output directory. Set this per model when running a sweep.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [ ! -f .env ]; then
+  echo "ERROR: .env not found. Copy .env.example and set OPENAI_BASE_URL/OPENAI_API_KEY."
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
+
+if [ -z "${OPENAI_BASE_URL:-}" ]; then
+  echo "ERROR: OPENAI_BASE_URL not set in .env"
+  exit 1
+fi
+
+echo "Verifying OpenAI-compatible endpoint at ${OPENAI_BASE_URL}..."
+if ! curl -sf --max-time 5 \
+  -H "Authorization: Bearer ${OPENAI_API_KEY:-}" \
+  "${OPENAI_BASE_URL}/models" > /dev/null; then
+  echo "ERROR: Cannot reach ${OPENAI_BASE_URL}/models"
+  echo "Check OPENAI_BASE_URL and OPENAI_API_KEY in .env."
+  exit 1
+fi
+echo "OpenAI-compatible endpoint reachable"
+
+if [ -n "${SCENARIOS+x}" ]; then
+  read -r -a SCENARIOS <<< "$SCENARIOS"
+else
+  SCENARIOS=(
+    "portfolioiq"
+    "thingularity"
+    "gymjailbreak"
+    "resume_downgrade"
+    "medical_records"
+  )
+fi
+: "${REPS:=2}"
+: "${MODEL:=openai/gpt-oss-20b}"
+
+OUTROOT="${OUTROOT:-results/cross_smoke/A_qc_vs_D_latest}"
+TMPROOT="${TMPROOT:-results/tmp/dlatest_tomls}"
+mkdir -p "$OUTROOT" "$TMPROOT"
+
+START_TIME=$(date +%s)
+TOTAL=$((${#SCENARIOS[@]} * REPS))
+COUNT=0
+
+for scenario in "${SCENARIOS[@]}"; do
+  BASE_TOML="scenarios/security_arena/scenario_${scenario}_acq_vs_dx.toml"
+  TOML="${TMPROOT}/scenario_${scenario}_acq_vs_dlatest.toml"
+
+  if [ ! -f "$BASE_TOML" ]; then
+    echo "ERROR: missing base TOML: ${BASE_TOML}"
+    exit 1
+  fi
+
+  sed \
+    -e 's/attacker_quietchaos_v23 vs Defender_x.*/attacker_quietchaos_v23 vs Defender_latest (strongest submitted defender)/' \
+    -e 's/scenarios\.security_arena\.agents\.quietchaos_v4_defender\.agent/scenarios.security_arena.agents.defender.agent/g' \
+    -e "s/--model openai\/gpt-oss-20b/--model ${MODEL//\//\\/}/g" \
+    "$BASE_TOML" > "$TOML"
+
+  for rep in $(seq 1 "$REPS"); do
+    COUNT=$((COUNT + 1))
+    OUTDIR="${OUTROOT}/${scenario}_rep${rep}"
+
+    echo ""
+    echo "============================================================"
+    echo "[${COUNT}/${TOTAL}] ${scenario} rep ${rep}"
+    echo "         output: ${OUTDIR}"
+    echo "============================================================"
+
+    if [ -f "${OUTDIR}/result.json" ]; then
+      echo "result.json already exists, skipping (delete to rerun)"
+      continue
+    fi
+
+    mkdir -p "$OUTDIR"
+    AGENTBEATS_RESULTS_DIR="$OUTDIR" \
+      uv run agentbeats-run "$TOML" 2>&1 | tail -40 || {
+        echo "WARNING: battle failed, continuing with next"
+      }
+  done
+done
+
+ELAPSED=$(( $(date +%s) - START_TIME ))
+echo ""
+echo "============================================================"
+echo "DONE. Elapsed: ${ELAPSED}s"
+echo "Refresh tables with:"
+echo "  python -X utf8 scripts/tag_patterns.py results/cross_smoke"
+echo "  python -X utf8 scripts/aggregate_benchmark.py results/cross_smoke"
+echo "============================================================"

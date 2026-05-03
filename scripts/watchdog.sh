@@ -65,7 +65,7 @@ while true; do
 
   # Process check
   if pgrep -f "bash scripts/run_smoke" > /dev/null 2>&1 || \
-     pgrep -f "agentbeats-run scenarios/security_arena/scenario_.*_acq_vs_d[xy]" > /dev/null 2>&1; then
+     pgrep -f "agentbeats-run .*scenario_.*_acq_vs_d(x|y|latest)" > /dev/null 2>&1; then
     # still running
     sleep "$POLL_SEC"
     continue
