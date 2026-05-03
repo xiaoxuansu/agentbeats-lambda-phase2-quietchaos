@@ -89,22 +89,38 @@ Do not commit `.env`.
 
 ### Optional: Mixed Providers
 
-The runners accept OpenAI-compatible endpoints per role. Keep `OPENAI_BASE_URL` and `OPENAI_API_KEY` as the shared fallback, then add role-specific overrides only where a role should use a different provider.
+The runners accept OpenAI-compatible endpoints per role. Keep `OPENAI_BASE_URL` and `OPENAI_API_KEY` as the shared fallback, then add role-specific overrides only where a role should use a different provider. Use the exact model IDs returned by the provider you are calling.
 
-For all roles on OpenRouter, set OpenRouter as the shared endpoint and choose role-specific models:
+Example A: all roles use OpenRouter, but each role can use a different OpenRouter model.
 
 ```bash
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_API_KEY=sk-or-...
 ```
 
-```powershell
-$env:ATTACKER_MODEL = "openrouter/attacker-model"
-$env:DEFENDER_MODEL = "openrouter/defender-model"
-$env:NORMAL_USER_MODEL = "openrouter/normal-user-model"
+Linux or Git Bash:
+
+```bash
+ATTACKER_MODEL="anthropic/claude-3.5-sonnet" \
+DEFENDER_MODEL="openai/gpt-5.5" \
+NORMAL_USER_MODEL="openai/gpt-5.5" \
+SCENARIOS="medical_records" \
+REPS=1 \
+bash scripts/run_smoke_dlatest.sh
 ```
 
-For an OpenRouter attacker with an OpenAI defender and normal user, keep OpenAI as the shared fallback and override only the attacker provider:
+Windows PowerShell:
+
+```powershell
+$env:ATTACKER_MODEL = "anthropic/claude-3.5-sonnet"
+$env:DEFENDER_MODEL = "openai/gpt-5.5"
+$env:NORMAL_USER_MODEL = "openai/gpt-5.5"
+$env:SCENARIOS = "medical_records"
+$env:REPS = "1"
+powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
+```
+
+Example B: attacker uses OpenRouter, while defender and normal user use the official OpenAI API.
 
 ```bash
 OPENAI_BASE_URL=https://api.openai.com/v1
@@ -113,10 +129,28 @@ ATTACKER_OPENAI_BASE_URL=https://openrouter.ai/api/v1
 ATTACKER_OPENAI_API_KEY=sk-or-...
 ```
 
+Linux or Git Bash:
+
+```bash
+ATTACKER_MODEL="anthropic/claude-3.5-sonnet" \
+DEFENDER_MODEL="gpt-5.5" \
+NORMAL_USER_MODEL="gpt-5.5" \
+SCENARIOS="medical_records" \
+REPS=1 \
+bash scripts/run_smoke_dlatest.sh
+```
+
+Windows PowerShell:
+
 ```powershell
-$env:ATTACKER_MODEL = "openrouter/attacker-model"
+$env:ATTACKER_OPENAI_BASE_URL = "https://openrouter.ai/api/v1"
+$env:ATTACKER_OPENAI_API_KEY = "sk-or-..."
+$env:ATTACKER_MODEL = "anthropic/claude-3.5-sonnet"
 $env:DEFENDER_MODEL = "gpt-5.5"
 $env:NORMAL_USER_MODEL = "gpt-5.5"
+$env:SCENARIOS = "medical_records"
+$env:REPS = "1"
+powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 ```
 
 The generated temporary TOMLs reference variables such as `${ATTACKER_OPENAI_API_KEY}` and do not write raw API keys into the scenario files.
