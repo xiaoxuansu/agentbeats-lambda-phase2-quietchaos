@@ -46,9 +46,10 @@ SCENARIOS = [
 
 PATTERNS = [
     "FSS", "CCBOS", "CRINJ", "OFE", "META", "DOCADD",
-    "FMERR", "PSDATA", "IMPDATA", "EMBEXT", "MULSTEP", "STRSL",
-    "CFLOOD", "PYTHENC", "NUMENC", "STEGO", "MANYS",
+    "FMERR", "PSDATA", "IMPDATA", "EMBEXT", "MULSTEP", "FITD",
+    "STRSL", "CFLOOD", "PYTHENC", "NUMENC", "STEGO", "MANYS",
     "URGENT", "HYPOT", "HELPEXP", "DRDEC", "CREATFMT", "WALK",
+    "L1",
 ]
 
 ROOT_DEFAULT = "results/cross_smoke"
