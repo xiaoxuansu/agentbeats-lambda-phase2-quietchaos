@@ -14,6 +14,12 @@
 #   ATTACKER_MODEL     Attacker model override. Defaults to MODEL.
 #   DEFENDER_MODEL     Defender model override. Defaults to MODEL.
 #   NORMAL_USER_MODEL  Normal-user model override. Defaults to MODEL.
+#   ATTACKER_OPENAI_BASE_URL / ATTACKER_OPENAI_API_KEY
+#                      Attacker provider override. Defaults to OPENAI_BASE_URL/API_KEY.
+#   DEFENDER_OPENAI_BASE_URL / DEFENDER_OPENAI_API_KEY
+#                      Defender provider override. Defaults to OPENAI_BASE_URL/API_KEY.
+#   NORMAL_USER_OPENAI_BASE_URL / NORMAL_USER_OPENAI_API_KEY
+#                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
 #   OUTROOT            Output directory. Set this per model when running a sweep.
@@ -82,6 +88,7 @@ for scenario in "${SCENARIOS[@]}"; do
   fi
 
   python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" <<'PY'
+import os
 import re
 import sys
 from pathlib import Path
@@ -104,9 +111,28 @@ def set_agent_model(content: str, module: str, model: str) -> str:
     return re.sub(pattern, lambda match: match.group(1) + model, content)
 
 
+def set_agent_env(content: str, module: str, role_prefix: str) -> str:
+    entries = []
+    base_url_var = f"{role_prefix}_OPENAI_BASE_URL"
+    api_key_var = f"{role_prefix}_OPENAI_API_KEY"
+    if os.environ.get(base_url_var):
+        entries.append(f'OPENAI_BASE_URL = "${{{base_url_var}}}"')
+    if os.environ.get(api_key_var):
+        entries.append(f'OPENAI_API_KEY = "${{{api_key_var}}}"')
+    if not entries:
+        return content
+
+    env_line = "env = { " + ", ".join(entries) + " }"
+    pattern = rf'(cmd\s*=\s*"[^"]*{re.escape(module)}[^"]*")'
+    return re.sub(pattern, lambda match: match.group(1) + "\n" + env_line, content)
+
+
 content = set_agent_model(content, "scenarios.security_arena.agents.attacker.agent", attacker_model)
 content = set_agent_model(content, "scenarios.security_arena.agents.defender.agent", defender_model)
 content = set_agent_model(content, "scenarios.security_arena.agents.normal_user.agent", normal_user_model)
+content = set_agent_env(content, "scenarios.security_arena.agents.attacker.agent", "ATTACKER")
+content = set_agent_env(content, "scenarios.security_arena.agents.defender.agent", "DEFENDER")
+content = set_agent_env(content, "scenarios.security_arena.agents.normal_user.agent", "NORMAL_USER")
 Path(toml).write_text(content, encoding="utf-8")
 PY
 

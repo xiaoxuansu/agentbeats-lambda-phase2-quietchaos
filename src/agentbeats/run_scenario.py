@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os, sys, time, subprocess, shlex, signal
+import re
 from pathlib import Path
 import tomllib
 import httpx
@@ -10,6 +11,7 @@ from a2a.client import A2ACardResolver
 
 
 load_dotenv(override=True)
+ENV_REF_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 async def wait_for_agents(cfg: dict, timeout: int = 30) -> bool:
@@ -74,7 +76,9 @@ def parse_toml(scenario_path: str) -> dict:
 
     green_ep = data.get("green_agent", {}).get("endpoint", "")
     g_host, g_port = host_port(green_ep)
-    green_cmd = data.get("green_agent", {}).get("cmd", "")
+    green_agent = data.get("green_agent", {})
+    green_cmd = green_agent.get("cmd", "")
+    green_env = green_agent.get("env", {})
 
     parts = []
     for p in data.get("participants", []):
@@ -84,12 +88,13 @@ def parse_toml(scenario_path: str) -> dict:
                 "role": str(p.get("role", "")),
                 "host": h,
                 "port": pt,
-                "cmd": p.get("cmd", "")
+                "cmd": p.get("cmd", ""),
+                "env": p.get("env", {}),
             })
 
     cfg = data.get("config", {})
     return {
-        "green_agent": {"host": g_host, "port": g_port, "cmd": green_cmd},
+        "green_agent": {"host": g_host, "port": g_port, "cmd": green_cmd, "env": green_env},
         "participants": parts,
         "config": cfg,
     }
@@ -100,6 +105,30 @@ def command_args(cmd: str) -> list[str]:
     if args and Path(args[0]).name.lower() in {"python", "python.exe", "python3", "python3.exe"}:
         args[0] = sys.executable
     return args
+
+
+def expand_env_value(value: str, source_env: dict[str, str]) -> str:
+    def replace_var(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name not in source_env:
+            raise RuntimeError(f"Scenario env references unset environment variable: {name}")
+        return source_env[name]
+
+    return ENV_REF_RE.sub(replace_var, value)
+
+
+def process_env(base_env: dict[str, str], overrides: dict[str, str] | None) -> dict[str, str]:
+    env = base_env.copy()
+    if not overrides:
+        return env
+    if not isinstance(overrides, dict):
+        raise RuntimeError("Scenario env overrides must be a TOML table")
+
+    for key, value in overrides.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise RuntimeError("Scenario env override keys and values must be strings")
+        env[key] = expand_env_value(value, base_env)
+    return env
 
 
 def stop_process(proc: subprocess.Popen, sig: int) -> None:
@@ -147,7 +176,7 @@ def main():
                 print(f"Starting {p['role']} at {p['host']}:{p['port']}")
                 procs.append(subprocess.Popen(
                     cmd_args,
-                    env=base_env,
+                    env=process_env(base_env, p.get("env")),
                     stdout=sink, stderr=sink,
                     text=True,
                     start_new_session=True,
@@ -159,7 +188,7 @@ def main():
             print(f"Starting green agent at {cfg['green_agent']['host']}:{cfg['green_agent']['port']}")
             procs.append(subprocess.Popen(
                 green_cmd_args,
-                env=base_env,
+                env=process_env(base_env, cfg["green_agent"].get("env")),
                 stdout=sink, stderr=sink,
                 text=True,
                 start_new_session=True,

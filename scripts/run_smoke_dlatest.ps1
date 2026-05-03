@@ -8,6 +8,12 @@
 #   ATTACKER_MODEL     Attacker model override. Defaults to MODEL.
 #   DEFENDER_MODEL     Defender model override. Defaults to MODEL.
 #   NORMAL_USER_MODEL  Normal-user model override. Defaults to MODEL.
+#   ATTACKER_OPENAI_BASE_URL / ATTACKER_OPENAI_API_KEY
+#                      Attacker provider override. Defaults to OPENAI_BASE_URL/API_KEY.
+#   DEFENDER_OPENAI_BASE_URL / DEFENDER_OPENAI_API_KEY
+#                      Defender provider override. Defaults to OPENAI_BASE_URL/API_KEY.
+#   NORMAL_USER_OPENAI_BASE_URL / NORMAL_USER_OPENAI_API_KEY
+#                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
 #   OUTROOT            Output directory. Set this per model when running a sweep.
@@ -19,6 +25,12 @@ param(
     [string]$AttackerModel = $env:ATTACKER_MODEL,
     [string]$DefenderModel = $env:DEFENDER_MODEL,
     [string]$NormalUserModel = $env:NORMAL_USER_MODEL,
+    [string]$AttackerOpenAIBaseUrl = $env:ATTACKER_OPENAI_BASE_URL,
+    [string]$AttackerOpenAIApiKey = $env:ATTACKER_OPENAI_API_KEY,
+    [string]$DefenderOpenAIBaseUrl = $env:DEFENDER_OPENAI_BASE_URL,
+    [string]$DefenderOpenAIApiKey = $env:DEFENDER_OPENAI_API_KEY,
+    [string]$NormalUserOpenAIBaseUrl = $env:NORMAL_USER_OPENAI_BASE_URL,
+    [string]$NormalUserOpenAIApiKey = $env:NORMAL_USER_OPENAI_API_KEY,
     [string]$Scenarios = $env:SCENARIOS,
     [int]$Reps = $(if ($env:REPS) { [int]$env:REPS } else { 2 }),
     [string]$OutRoot = $env:OUTROOT,
@@ -77,6 +89,35 @@ function Set-AgentModel {
     })
 }
 
+function Set-AgentEnv {
+    param(
+        [string]$Content,
+        [string]$Module,
+        [string]$RolePrefix,
+        [string]$BaseUrl,
+        [string]$ApiKey
+    )
+
+    $entries = @()
+    if ($BaseUrl) {
+        $entries += 'OPENAI_BASE_URL = "${' + $RolePrefix + '_OPENAI_BASE_URL}"'
+    }
+    if ($ApiKey) {
+        $entries += 'OPENAI_API_KEY = "${' + $RolePrefix + '_OPENAI_API_KEY}"'
+    }
+    if (-not $entries) {
+        return $Content
+    }
+
+    $escapedModule = [regex]::Escape($Module)
+    $pattern = "(cmd\s*=\s*`"[^`"]*$escapedModule[^`"]*`")"
+    $envLine = "env = { " + ($entries -join ", ") + " }"
+    return [regex]::Replace($Content, $pattern, {
+        param($match)
+        $match.Groups[1].Value + "`n" + $envLine
+    })
+}
+
 Load-DotEnv ".env"
 
 if (-not $env:OPENAI_BASE_URL) {
@@ -107,17 +148,47 @@ try {
 }
 Write-Host "OpenAI-compatible endpoint reachable"
 
+if (-not $Model -and $env:MODEL) {
+    $Model = $env:MODEL
+}
 if (-not $Model) {
     $Model = "openai/gpt-oss-20b"
+}
+if (-not $AttackerModel -and $env:ATTACKER_MODEL) {
+    $AttackerModel = $env:ATTACKER_MODEL
 }
 if (-not $AttackerModel) {
     $AttackerModel = $Model
 }
+if (-not $DefenderModel -and $env:DEFENDER_MODEL) {
+    $DefenderModel = $env:DEFENDER_MODEL
+}
 if (-not $DefenderModel) {
     $DefenderModel = $Model
 }
+if (-not $NormalUserModel -and $env:NORMAL_USER_MODEL) {
+    $NormalUserModel = $env:NORMAL_USER_MODEL
+}
 if (-not $NormalUserModel) {
     $NormalUserModel = $Model
+}
+if (-not $AttackerOpenAIBaseUrl) {
+    $AttackerOpenAIBaseUrl = $env:ATTACKER_OPENAI_BASE_URL
+}
+if (-not $AttackerOpenAIApiKey) {
+    $AttackerOpenAIApiKey = $env:ATTACKER_OPENAI_API_KEY
+}
+if (-not $DefenderOpenAIBaseUrl) {
+    $DefenderOpenAIBaseUrl = $env:DEFENDER_OPENAI_BASE_URL
+}
+if (-not $DefenderOpenAIApiKey) {
+    $DefenderOpenAIApiKey = $env:DEFENDER_OPENAI_API_KEY
+}
+if (-not $NormalUserOpenAIBaseUrl) {
+    $NormalUserOpenAIBaseUrl = $env:NORMAL_USER_OPENAI_BASE_URL
+}
+if (-not $NormalUserOpenAIApiKey) {
+    $NormalUserOpenAIApiKey = $env:NORMAL_USER_OPENAI_API_KEY
 }
 if (-not $OutRoot) {
     $OutRoot = "results/cross_smoke/A_qc_vs_D_latest"
@@ -158,6 +229,9 @@ foreach ($scenario in $scenarioList) {
     $content = Set-AgentModel $content "scenarios.security_arena.agents.attacker.agent" $AttackerModel
     $content = Set-AgentModel $content "scenarios.security_arena.agents.defender.agent" $DefenderModel
     $content = Set-AgentModel $content "scenarios.security_arena.agents.normal_user.agent" $NormalUserModel
+    $content = Set-AgentEnv $content "scenarios.security_arena.agents.attacker.agent" "ATTACKER" $AttackerOpenAIBaseUrl $AttackerOpenAIApiKey
+    $content = Set-AgentEnv $content "scenarios.security_arena.agents.defender.agent" "DEFENDER" $DefenderOpenAIBaseUrl $DefenderOpenAIApiKey
+    $content = Set-AgentEnv $content "scenarios.security_arena.agents.normal_user.agent" "NORMAL_USER" $NormalUserOpenAIBaseUrl $NormalUserOpenAIApiKey
 
     $tomlFullPath = [System.IO.Path]::GetFullPath($toml)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)

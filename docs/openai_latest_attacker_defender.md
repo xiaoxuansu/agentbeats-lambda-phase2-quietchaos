@@ -87,6 +87,40 @@ OPENAI_API_KEY=sk-...
 
 Do not commit `.env`.
 
+### Optional: Mixed Providers
+
+The runners accept OpenAI-compatible endpoints per role. Keep `OPENAI_BASE_URL` and `OPENAI_API_KEY` as the shared fallback, then add role-specific overrides only where a role should use a different provider.
+
+For all roles on OpenRouter, set OpenRouter as the shared endpoint and choose role-specific models:
+
+```bash
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=sk-or-...
+```
+
+```powershell
+$env:ATTACKER_MODEL = "openrouter/attacker-model"
+$env:DEFENDER_MODEL = "openrouter/defender-model"
+$env:NORMAL_USER_MODEL = "openrouter/normal-user-model"
+```
+
+For an OpenRouter attacker with an OpenAI defender and normal user, keep OpenAI as the shared fallback and override only the attacker provider:
+
+```bash
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=sk-...
+ATTACKER_OPENAI_BASE_URL=https://openrouter.ai/api/v1
+ATTACKER_OPENAI_API_KEY=sk-or-...
+```
+
+```powershell
+$env:ATTACKER_MODEL = "openrouter/attacker-model"
+$env:DEFENDER_MODEL = "gpt-5.5"
+$env:NORMAL_USER_MODEL = "gpt-5.5"
+```
+
+The generated temporary TOMLs reference variables such as `${ATTACKER_OPENAI_API_KEY}` and do not write raw API keys into the scenario files.
+
 ## 2. Verify Available Models
 
 On Linux or Git Bash, check that the key works and list model IDs available to your account:
