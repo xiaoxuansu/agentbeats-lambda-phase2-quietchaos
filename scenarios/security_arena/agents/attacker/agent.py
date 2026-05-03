@@ -750,10 +750,15 @@ class Attacker(AgentExecutor):
         return template.render(**vars(ctx), **extra)
 
     async def _generate(self, system: str, user: str) -> str:
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
-        )
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
+            )
+        except json.JSONDecodeError as exc:
+            logger.warning("LLM response was not valid JSON; using fallback path: %s", exc)
+            return ""
+
         choices = getattr(response, "choices", None) or []
         if not choices:
             logger.warning("LLM response contained no choices; using fallback path")

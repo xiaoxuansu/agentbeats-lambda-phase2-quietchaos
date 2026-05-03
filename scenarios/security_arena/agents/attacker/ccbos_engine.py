@@ -43,6 +43,7 @@ Public API (used by agent.py):
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import random
@@ -973,6 +974,8 @@ def ccbos_generate_one(intention: str, original_query: str, fly: dict,
 
         logger.warning("CC-BOS: LLM generation/extraction failed (raw=%d chars)", len(raw))
 
+    except json.JSONDecodeError as e:
+        logger.warning("CC-BOS LLM response was not valid JSON: %s", e)
     except Exception as e:
         logger.warning("CC-BOS generate_one LLM error: %s", e)
 
