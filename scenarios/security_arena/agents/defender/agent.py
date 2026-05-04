@@ -957,11 +957,22 @@ class Defender(AgentExecutor):
 
     async def _generate(self, system: str, user: str) -> str:
         """Generate a response from the LLM."""
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
-        )
-        content = response.choices[0].message.content
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
+            )
+        except json.JSONDecodeError as exc:
+            logger.warning("LLM response was not valid JSON; using empty fallback: %s", exc)
+            return ""
+
+        choices = getattr(response, "choices", None) or []
+        if not choices:
+            logger.warning("LLM response contained no choices; using empty fallback")
+            return ""
+
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None)
         return content if content is not None else ""
 
     async def execute(self, context: RequestContext, event_queue: EventQueue):
