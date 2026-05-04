@@ -43,6 +43,12 @@ if [ -z "${OPENAI_BASE_URL:-}" ]; then
   exit 1
 fi
 
+# PORT_BASE allows parallel runs by remapping the four agent ports.
+# Default 9000 produces orchestrator=9010 / defender=9020 / attacker=9021 /
+# normal_user=9022 (the original numbers). Each parallel instance must use
+# a unique PORT_BASE 100 apart (9100, 9200, 9300, ...).
+: "${PORT_BASE:=9000}"
+
 echo "Verifying OpenAI-compatible endpoint at ${OPENAI_BASE_URL}..."
 if ! curl -sf --max-time 5 \
   -H "Authorization: Bearer ${OPENAI_API_KEY:-}" \
@@ -87,13 +93,15 @@ for scenario in "${SCENARIOS[@]}"; do
     exit 1
   fi
 
-  python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" <<'PY'
+  python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" "$PORT_BASE" <<'PY'
 import os
 import re
 import sys
 from pathlib import Path
 
-base_toml, toml, attacker_model, defender_model, normal_user_model = sys.argv[1:]
+(base_toml, toml, attacker_model, defender_model,
+ normal_user_model, port_base) = sys.argv[1:]
+port_base = int(port_base)
 content = Path(base_toml).read_text(encoding="utf-8")
 content = re.sub(
     r"attacker_quietchaos_v23 vs Defender_x.*",
@@ -104,6 +112,16 @@ content = content.replace(
     "scenarios.security_arena.agents.quietchaos_v4_defender.agent",
     "scenarios.security_arena.agents.defender.agent",
 )
+
+# Port remapping: original 9010/9020/9021/9022 → PORT_BASE+10/20/21/22.
+# Default PORT_BASE=9000 leaves the original numbers untouched.
+PORT_OFFSETS = {9010: 10, 9020: 20, 9021: 21, 9022: 22}
+for old_port, off in PORT_OFFSETS.items():
+    new_port = port_base + off
+    if new_port == old_port:
+        continue
+    content = content.replace(f":{old_port}", f":{new_port}")
+    content = content.replace(f"--port {old_port}", f"--port {new_port}")
 
 
 def set_agent_model(content: str, module: str, model: str) -> str:
