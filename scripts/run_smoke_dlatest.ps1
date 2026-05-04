@@ -16,7 +16,7 @@
 #                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
-#   OUTROOT            Output directory. Set this per model when running a sweep.
+#   OUTROOT            Output directory. If unset, a role/model slug is appended.
 #   TMPROOT            Temporary TOML output directory.
 
 [CmdletBinding()]
@@ -118,6 +118,18 @@ function Set-AgentEnv {
     })
 }
 
+function ConvertTo-PathSlug {
+    param([string]$Value)
+
+    $slug = $Value.ToLowerInvariant()
+    $slug = [regex]::Replace($slug, "[^a-z0-9]+", "_")
+    $slug = $slug.Trim("_")
+    if (-not $slug) {
+        return "unset"
+    }
+    return $slug
+}
+
 Load-DotEnv ".env"
 
 if (-not $env:OPENAI_BASE_URL) {
@@ -191,7 +203,11 @@ if (-not $NormalUserOpenAIApiKey) {
     $NormalUserOpenAIApiKey = $env:NORMAL_USER_OPENAI_API_KEY
 }
 if (-not $OutRoot) {
-    $OutRoot = "results/cross_smoke/A_qc_vs_D_latest"
+    $attackerSlug = ConvertTo-PathSlug $AttackerModel
+    $defenderSlug = ConvertTo-PathSlug $DefenderModel
+    $normalUserSlug = ConvertTo-PathSlug $NormalUserModel
+    $runSlug = "A_${attackerSlug}__D_${defenderSlug}__N_${normalUserSlug}"
+    $OutRoot = Join-Path "results/cross_smoke/A_qc_vs_D_latest" $runSlug
 }
 if (-not $TmpRoot) {
     $TmpRoot = "results/tmp/dlatest_tomls"

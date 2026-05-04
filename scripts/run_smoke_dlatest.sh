@@ -22,7 +22,7 @@
 #                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
-#   OUTROOT            Output directory. Set this per model when running a sweep.
+#   OUTROOT            Output directory. If unset, a role/model slug is appended.
 
 set -euo pipefail
 
@@ -70,7 +70,22 @@ fi
 : "${DEFENDER_MODEL:=$MODEL}"
 : "${NORMAL_USER_MODEL:=$MODEL}"
 
-OUTROOT="${OUTROOT:-results/cross_smoke/A_qc_vs_D_latest}"
+slugify() {
+  python - "$1" <<'PY'
+import re
+import sys
+
+slug = re.sub(r"[^a-z0-9]+", "_", sys.argv[1].lower()).strip("_")
+print(slug or "unset")
+PY
+}
+
+if [ -z "${OUTROOT:-}" ]; then
+  ATTACKER_SLUG="$(slugify "$ATTACKER_MODEL")"
+  DEFENDER_SLUG="$(slugify "$DEFENDER_MODEL")"
+  NORMAL_USER_SLUG="$(slugify "$NORMAL_USER_MODEL")"
+  OUTROOT="results/cross_smoke/A_qc_vs_D_latest/A_${ATTACKER_SLUG}__D_${DEFENDER_SLUG}__N_${NORMAL_USER_SLUG}"
+fi
 TMPROOT="${TMPROOT:-results/tmp/dlatest_tomls}"
 mkdir -p "$OUTROOT" "$TMPROOT"
 
