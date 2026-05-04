@@ -52,7 +52,9 @@ Do not run `curl ... | sh && source ~/.profile` in Windows PowerShell. That is a
 - Attacker: `scenarios.security_arena.agents.attacker.agent`
 - Defender: `scenarios.security_arena.agents.defender.agent`
 - Linux/Git Bash runner: `scripts/run_smoke_dlatest.sh`
+- Linux/Git Bash sweep runner: `scripts/run_smoke_dlatest_sweep.sh`
 - Windows PowerShell runner: `scripts/run_smoke_dlatest.ps1`
+- Windows PowerShell sweep runner: `scripts/run_smoke_dlatest_sweep.ps1`
 - Default scenarios:
   - `portfolioiq`
   - `thingularity`
@@ -61,6 +63,26 @@ Do not run `curl ... | sh && source ~/.profile` in Windows PowerShell. That is a
   - `medical_records`
 
 The script derives temporary TOML files from the existing `*_acq_vs_dx.toml` files, swaps in the latest defender module, and replaces the model argument for all three agents.
+
+The Bash and PowerShell runners intentionally expose the same core controls:
+
+```text
+MODEL
+ATTACKER_MODEL / DEFENDER_MODEL / NORMAL_USER_MODEL
+ATTACKER_OPENAI_BASE_URL / ATTACKER_OPENAI_API_KEY
+DEFENDER_OPENAI_BASE_URL / DEFENDER_OPENAI_API_KEY
+NORMAL_USER_OPENAI_BASE_URL / NORMAL_USER_OPENAI_API_KEY
+SCENARIOS
+REPS
+REP_PAUSE_SECONDS
+PORT_OFFSET
+STARTUP_TIMEOUT
+SHOW_LOGS
+OUTROOT
+TMPROOT
+```
+
+They are not byte-for-byte identical implementations, but the Bash and PowerShell runners now have matching single-run and sweep entry points. Both generate role/model-specific output directories when `OUTROOT` is unset.
 
 ## 1. Configure OpenAI API
 
@@ -212,7 +234,7 @@ Remove-Item Env:MODEL, Env:SCENARIOS, Env:REPS -ErrorAction SilentlyContinue
 This writes to:
 
 ```text
-results/cross_smoke/A_qc_vs_D_latest/medical_records_rep1/result.json
+results/cross_smoke/A_qc_vs_D_latest/A_gpt_5_5__D_gpt_5_5__N_gpt_5_5/medical_records_rep1/result.json
 ```
 
 If `result.json` already exists, the runner skips that rep. Delete the specific rep directory if you intentionally want to rerun it.
@@ -320,16 +342,37 @@ do
 done
 ```
 
-To run multiple Bash jobs yourself in parallel, assign a unique `PORT_OFFSET` for each job. The base ports are `9010/9020/9021/9022`, so `PORT_OFFSET=100` uses `9110/9120/9121/9122`.
+For Linux or Git Bash parallel sweeps, use `scripts/run_smoke_dlatest_sweep.sh`. It starts one job per model, assigns port offsets automatically, and prefixes live output with `sweep_###`.
 
 ```bash
-MODEL="anthropic/claude-sonnet-4.6" PORT_OFFSET=100 bash scripts/run_smoke_dlatest.sh &
-MODEL="openai/gpt-5.5" PORT_OFFSET=200 bash scripts/run_smoke_dlatest.sh &
-MODEL="z-ai/glm-5.1" PORT_OFFSET=300 bash scripts/run_smoke_dlatest.sh &
+MODELS="anthropic/claude-sonnet-4.6 openai/gpt-5.5 z-ai/glm-5.1 minimax/minimax-m2.7 xiaomi/mimo-v2.5-pro" \
+SCENARIOS="portfolioiq thingularity gymjailbreak resume_downgrade medical_records" \
+REPS=5 \
+REP_PAUSE_SECONDS=120 \
+MAX_PARALLEL_MODELS=5 \
+LOG_POLL_SECONDS=5 \
+SHOW_LOGS=1 \
+bash scripts/run_smoke_dlatest_sweep.sh
+```
+
+You can also run multiple Bash jobs yourself in parallel by assigning a unique `PORT_OFFSET` for each job. The base ports are `9010/9020/9021/9022`, so `PORT_OFFSET=100` uses `9110/9120/9121/9122`.
+
+```bash
+SCENARIOS="portfolioiq thingularity gymjailbreak resume_downgrade medical_records" REPS=5 MODEL="anthropic/claude-sonnet-4.6" PORT_OFFSET=100 bash scripts/run_smoke_dlatest.sh &
+SCENARIOS="portfolioiq thingularity gymjailbreak resume_downgrade medical_records" REPS=5 MODEL="openai/gpt-5.5" PORT_OFFSET=200 bash scripts/run_smoke_dlatest.sh &
+SCENARIOS="portfolioiq thingularity gymjailbreak resume_downgrade medical_records" REPS=5 MODEL="z-ai/glm-5.1" PORT_OFFSET=300 bash scripts/run_smoke_dlatest.sh &
 wait
 ```
 
-For Windows PowerShell, use the sweep wrapper to run many models at the same time. It starts one job per model, assigns port offsets automatically, and flushes intermediate logs every few seconds.
+For either runner, `PORT_OFFSET` remaps the generated TOML endpoints and `--port` arguments:
+
+```text
+PORT_OFFSET=0:   9010/9020/9021/9022
+PORT_OFFSET=100: 9110/9120/9121/9122
+PORT_OFFSET=200: 9210/9220/9221/9222
+```
+
+For Windows PowerShell, use the PowerShell sweep wrapper. It starts one job per model, assigns port offsets automatically, and flushes intermediate logs every few seconds.
 
 ```powershell
 $env:MODELS = "anthropic/claude-sonnet-4.6 openai/gpt-5.5 z-ai/glm-5.1 minimax/minimax-m2.7 xiaomi/mimo-v2.5-pro"
@@ -342,7 +385,7 @@ $env:SHOW_LOGS = "1"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest_sweep.ps1
 ```
 
-Default PowerShell sweep ports:
+Default sweep ports:
 
 ```text
 sweep_001: 9110/9120/9121/9122
@@ -385,6 +428,12 @@ To see child-agent startup logs when debugging readiness failures:
 $env:SHOW_LOGS = "1"
 powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
 Remove-Item Env:SHOW_LOGS -ErrorAction SilentlyContinue
+```
+
+The Bash runner accepts the same controls:
+
+```bash
+STARTUP_TIMEOUT=180 SHOW_LOGS=1 bash scripts/run_smoke_dlatest.sh
 ```
 
 ## Troubleshooting

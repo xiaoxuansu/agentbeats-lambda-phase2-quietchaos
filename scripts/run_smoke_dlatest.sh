@@ -25,6 +25,8 @@
 #   REP_PAUSE_SECONDS  Seconds to sleep between reps. Default: 0.
 #   PORT_OFFSET        Add this value to local ports 9010/9020/9021/9022.
 #                      Use a different offset for parallel runs.
+#   STARTUP_TIMEOUT    Seconds to wait for agent startup. Default: 90.
+#   SHOW_LOGS          If set and not 0, pass --show-logs to agentbeats-run.
 #   OUTROOT            Output directory. If unset, a role/model slug is appended.
 #   TMPROOT            Temporary TOML output directory.
 
@@ -37,10 +39,29 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+declare -A CALLER_ENV=()
+for name in \
+  MODEL ATTACKER_MODEL DEFENDER_MODEL NORMAL_USER_MODEL \
+  ATTACKER_OPENAI_BASE_URL ATTACKER_OPENAI_API_KEY \
+  DEFENDER_OPENAI_BASE_URL DEFENDER_OPENAI_API_KEY \
+  NORMAL_USER_OPENAI_BASE_URL NORMAL_USER_OPENAI_API_KEY \
+  SCENARIOS REPS REP_PAUSE_SECONDS PORT_OFFSET STARTUP_TIMEOUT SHOW_LOGS \
+  OUTROOT TMPROOT
+do
+  if [[ -v "$name" ]]; then
+    CALLER_ENV["$name"]="${!name}"
+  fi
+done
+
 set -a
 # shellcheck disable=SC1091
 source .env
 set +a
+
+for name in "${!CALLER_ENV[@]}"; do
+  printf -v "$name" "%s" "${CALLER_ENV[$name]}"
+  export "$name"
+done
 
 if [ -z "${OPENAI_BASE_URL:-}" ]; then
   echo "ERROR: OPENAI_BASE_URL not set in .env"
@@ -71,6 +92,8 @@ fi
 : "${REPS:=2}"
 : "${REP_PAUSE_SECONDS:=0}"
 : "${PORT_OFFSET:=0}"
+: "${STARTUP_TIMEOUT:=90}"
+: "${SHOW_LOGS:=0}"
 : "${MODEL:=openai/gpt-oss-20b}"
 : "${ATTACKER_MODEL:=$MODEL}"
 : "${DEFENDER_MODEL:=$MODEL}"
@@ -78,6 +101,10 @@ fi
 
 if ! [[ "$PORT_OFFSET" =~ ^[0-9]+$ ]]; then
   echo "ERROR: PORT_OFFSET must be a non-negative integer"
+  exit 1
+fi
+if ! [[ "$STARTUP_TIMEOUT" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: STARTUP_TIMEOUT must be a non-negative integer"
   exit 1
 fi
 
@@ -207,8 +234,12 @@ PY
     fi
 
     mkdir -p "$OUTDIR"
+    AGENTBEATS_ARGS=("$TOML" "--startup-timeout" "$STARTUP_TIMEOUT")
+    if [ -n "${SHOW_LOGS:-}" ] && [ "$SHOW_LOGS" != "0" ]; then
+      AGENTBEATS_ARGS+=("--show-logs")
+    fi
     AGENTBEATS_RESULTS_DIR="$OUTDIR" \
-      uv run agentbeats-run "$TOML" 2>&1 | tail -40 || {
+      uv run agentbeats-run "${AGENTBEATS_ARGS[@]}" 2>&1 | tail -40 || {
         echo "WARNING: battle failed, continuing with next"
       }
 
