@@ -16,6 +16,9 @@
 #                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
+#   REP_PAUSE_SECONDS  Seconds to sleep between reps. Default: 0.
+#   PORT_OFFSET        Add this value to local ports 9010/9020/9021/9022.
+#                      Use a different offset for parallel runs.
 #   OUTROOT            Output directory. If unset, a role/model slug is appended.
 #   TMPROOT            Temporary TOML output directory.
 
@@ -33,16 +36,22 @@ param(
     [string]$NormalUserOpenAIApiKey = $env:NORMAL_USER_OPENAI_API_KEY,
     [string]$Scenarios = $env:SCENARIOS,
     [int]$Reps = $(if ($env:REPS) { [int]$env:REPS } else { 2 }),
+    [int]$RepPauseSeconds = $(if ($env:REP_PAUSE_SECONDS) { [int]$env:REP_PAUSE_SECONDS } else { 0 }),
     [string]$OutRoot = $env:OUTROOT,
     [string]$TmpRoot = $env:TMPROOT,
+    [int]$PortOffset = $(if ($env:PORT_OFFSET) { [int]$env:PORT_OFFSET } else { 0 }),
     [int]$StartupTimeout = $(if ($env:STARTUP_TIMEOUT) { [int]$env:STARTUP_TIMEOUT } else { 90 }),
     [switch]$ShowLogs = $(if ($env:SHOW_LOGS -and $env:SHOW_LOGS -ne "0") { $true } else { $false })
 )
 
 $ErrorActionPreference = "Stop"
+$explicitModel = $PSBoundParameters.ContainsKey("Model")
+$explicitAttackerModel = $PSBoundParameters.ContainsKey("AttackerModel")
+$explicitDefenderModel = $PSBoundParameters.ContainsKey("DefenderModel")
+$explicitNormalUserModel = $PSBoundParameters.ContainsKey("NormalUserModel")
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = Resolve-Path (Join-Path $scriptDir "..")
+$repoRoot = (Resolve-Path (Join-Path $scriptDir "..")).Path
 Set-Location $repoRoot
 
 function Load-DotEnv {
@@ -130,6 +139,36 @@ function ConvertTo-PathSlug {
     return $slug
 }
 
+function Set-PortOffset {
+    param(
+        [string]$Content,
+        [int]$Offset
+    )
+
+    if ($Offset -eq 0) {
+        return $Content
+    }
+
+    $portMap = @{
+        "9010" = 9010 + $Offset
+        "9020" = 9020 + $Offset
+        "9021" = 9021 + $Offset
+        "9022" = 9022 + $Offset
+    }
+
+    $portPattern = "9010|9020|9021|9022"
+    $Content = [regex]::Replace($Content, "(127\.0\.0\.1|localhost):($portPattern)\b", {
+        param($match)
+        $match.Groups[1].Value + ":" + [string]$portMap[$match.Groups[2].Value]
+    })
+    $Content = [regex]::Replace($Content, "(\s--port\s+)($portPattern)\b", {
+        param($match)
+        $match.Groups[1].Value + [string]$portMap[$match.Groups[2].Value]
+    })
+
+    return $Content
+}
+
 Load-DotEnv ".env"
 
 if (-not $env:OPENAI_BASE_URL) {
@@ -166,23 +205,32 @@ if (-not $Model -and $env:MODEL) {
 if (-not $Model) {
     $Model = "openai/gpt-oss-20b"
 }
-if (-not $AttackerModel -and $env:ATTACKER_MODEL) {
+if ($explicitModel -and -not $explicitAttackerModel) {
+    $AttackerModel = $Model
+} elseif (-not $AttackerModel -and $env:ATTACKER_MODEL) {
     $AttackerModel = $env:ATTACKER_MODEL
 }
 if (-not $AttackerModel) {
     $AttackerModel = $Model
 }
-if (-not $DefenderModel -and $env:DEFENDER_MODEL) {
+if ($explicitModel -and -not $explicitDefenderModel) {
+    $DefenderModel = $Model
+} elseif (-not $DefenderModel -and $env:DEFENDER_MODEL) {
     $DefenderModel = $env:DEFENDER_MODEL
 }
 if (-not $DefenderModel) {
     $DefenderModel = $Model
 }
-if (-not $NormalUserModel -and $env:NORMAL_USER_MODEL) {
+if ($explicitModel -and -not $explicitNormalUserModel) {
+    $NormalUserModel = $Model
+} elseif (-not $NormalUserModel -and $env:NORMAL_USER_MODEL) {
     $NormalUserModel = $env:NORMAL_USER_MODEL
 }
 if (-not $NormalUserModel) {
     $NormalUserModel = $Model
+}
+if ($PortOffset -lt 0) {
+    throw "ERROR: PORT_OFFSET must be non-negative"
 }
 if (-not $AttackerOpenAIBaseUrl) {
     $AttackerOpenAIBaseUrl = $env:ATTACKER_OPENAI_BASE_URL
@@ -202,15 +250,22 @@ if (-not $NormalUserOpenAIBaseUrl) {
 if (-not $NormalUserOpenAIApiKey) {
     $NormalUserOpenAIApiKey = $env:NORMAL_USER_OPENAI_API_KEY
 }
+$attackerSlug = ConvertTo-PathSlug $AttackerModel
+$defenderSlug = ConvertTo-PathSlug $DefenderModel
+$normalUserSlug = ConvertTo-PathSlug $NormalUserModel
+$runSlug = "A_${attackerSlug}__D_${defenderSlug}__N_${normalUserSlug}"
 if (-not $OutRoot) {
-    $attackerSlug = ConvertTo-PathSlug $AttackerModel
-    $defenderSlug = ConvertTo-PathSlug $DefenderModel
-    $normalUserSlug = ConvertTo-PathSlug $NormalUserModel
-    $runSlug = "A_${attackerSlug}__D_${defenderSlug}__N_${normalUserSlug}"
     $OutRoot = Join-Path "results/cross_smoke/A_qc_vs_D_latest" $runSlug
 }
 if (-not $TmpRoot) {
-    $TmpRoot = "results/tmp/dlatest_tomls"
+    $tmpSlug = ConvertTo-PathSlug $runSlug
+    $TmpRoot = Join-Path "results/tmp/dlatest_tomls" (Join-Path $tmpSlug "ports_$PortOffset")
+}
+if (-not [System.IO.Path]::IsPathRooted($OutRoot)) {
+    $OutRoot = Join-Path $repoRoot $OutRoot
+}
+if (-not [System.IO.Path]::IsPathRooted($TmpRoot)) {
+    $TmpRoot = Join-Path $repoRoot $TmpRoot
 }
 
 if ($Scenarios) {
@@ -248,8 +303,10 @@ foreach ($scenario in $scenarioList) {
     $content = Set-AgentEnv $content "scenarios.security_arena.agents.attacker.agent" "ATTACKER" $AttackerOpenAIBaseUrl $AttackerOpenAIApiKey
     $content = Set-AgentEnv $content "scenarios.security_arena.agents.defender.agent" "DEFENDER" $DefenderOpenAIBaseUrl $DefenderOpenAIApiKey
     $content = Set-AgentEnv $content "scenarios.security_arena.agents.normal_user.agent" "NORMAL_USER" $NormalUserOpenAIBaseUrl $NormalUserOpenAIApiKey
+    $content = Set-PortOffset $content $PortOffset
 
     $tomlFullPath = [System.IO.Path]::GetFullPath($toml)
+    [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($tomlFullPath)) | Out-Null
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($tomlFullPath, $content, $utf8NoBom)
 
@@ -296,6 +353,11 @@ foreach ($scenario in $scenarioList) {
             } else {
                 $env:AGENTBEATS_RESULTS_DIR = $oldResultsDir
             }
+        }
+
+        if ($RepPauseSeconds -gt 0 -and $count -lt $total) {
+            Write-Host "Pausing ${RepPauseSeconds}s before next rep..."
+            Start-Sleep -Seconds $RepPauseSeconds
         }
     }
 }

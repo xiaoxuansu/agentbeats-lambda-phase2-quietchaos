@@ -22,7 +22,11 @@
 #                      Normal-user provider override. Defaults to OPENAI_BASE_URL/API_KEY.
 #   SCENARIOS          Space-separated scenario list.
 #   REPS               Number of reps per scenario.
+#   REP_PAUSE_SECONDS  Seconds to sleep between reps. Default: 0.
+#   PORT_OFFSET        Add this value to local ports 9010/9020/9021/9022.
+#                      Use a different offset for parallel runs.
 #   OUTROOT            Output directory. If unset, a role/model slug is appended.
+#   TMPROOT            Temporary TOML output directory.
 
 set -euo pipefail
 
@@ -65,10 +69,17 @@ else
   )
 fi
 : "${REPS:=2}"
+: "${REP_PAUSE_SECONDS:=0}"
+: "${PORT_OFFSET:=0}"
 : "${MODEL:=openai/gpt-oss-20b}"
 : "${ATTACKER_MODEL:=$MODEL}"
 : "${DEFENDER_MODEL:=$MODEL}"
 : "${NORMAL_USER_MODEL:=$MODEL}"
+
+if ! [[ "$PORT_OFFSET" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: PORT_OFFSET must be a non-negative integer"
+  exit 1
+fi
 
 slugify() {
   python - "$1" <<'PY'
@@ -80,13 +91,15 @@ print(slug or "unset")
 PY
 }
 
+ATTACKER_SLUG="$(slugify "$ATTACKER_MODEL")"
+DEFENDER_SLUG="$(slugify "$DEFENDER_MODEL")"
+NORMAL_USER_SLUG="$(slugify "$NORMAL_USER_MODEL")"
+RUN_SLUG="A_${ATTACKER_SLUG}__D_${DEFENDER_SLUG}__N_${NORMAL_USER_SLUG}"
+
 if [ -z "${OUTROOT:-}" ]; then
-  ATTACKER_SLUG="$(slugify "$ATTACKER_MODEL")"
-  DEFENDER_SLUG="$(slugify "$DEFENDER_MODEL")"
-  NORMAL_USER_SLUG="$(slugify "$NORMAL_USER_MODEL")"
-  OUTROOT="results/cross_smoke/A_qc_vs_D_latest/A_${ATTACKER_SLUG}__D_${DEFENDER_SLUG}__N_${NORMAL_USER_SLUG}"
+  OUTROOT="results/cross_smoke/A_qc_vs_D_latest/${RUN_SLUG}"
 fi
-TMPROOT="${TMPROOT:-results/tmp/dlatest_tomls}"
+TMPROOT="${TMPROOT:-results/tmp/dlatest_tomls/${RUN_SLUG}/ports_${PORT_OFFSET}}"
 mkdir -p "$OUTROOT" "$TMPROOT"
 
 START_TIME=$(date +%s)
@@ -102,13 +115,14 @@ for scenario in "${SCENARIOS[@]}"; do
     exit 1
   fi
 
-  python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" <<'PY'
+  python - "$BASE_TOML" "$TOML" "$ATTACKER_MODEL" "$DEFENDER_MODEL" "$NORMAL_USER_MODEL" "$PORT_OFFSET" <<'PY'
 import os
 import re
 import sys
 from pathlib import Path
 
-base_toml, toml, attacker_model, defender_model, normal_user_model = sys.argv[1:]
+base_toml, toml, attacker_model, defender_model, normal_user_model, port_offset = sys.argv[1:]
+port_offset = int(port_offset)
 content = Path(base_toml).read_text(encoding="utf-8")
 content = re.sub(
     r"attacker_quietchaos_v23 vs Defender_x.*",
@@ -142,12 +156,38 @@ def set_agent_env(content: str, module: str, role_prefix: str) -> str:
     return re.sub(pattern, lambda match: match.group(1) + "\n" + env_line, content)
 
 
+def set_port_offset(content: str, offset: int) -> str:
+    if offset == 0:
+        return content
+
+    port_map = {
+        "9010": str(9010 + offset),
+        "9020": str(9020 + offset),
+        "9021": str(9021 + offset),
+        "9022": str(9022 + offset),
+    }
+    port_pattern = "|".join(port_map)
+    content = re.sub(
+        rf"(127\.0\.0\.1|localhost):({port_pattern})\b",
+        lambda match: f"{match.group(1)}:{port_map[match.group(2)]}",
+        content,
+    )
+    content = re.sub(
+        rf"(\s--port\s+)({port_pattern})\b",
+        lambda match: match.group(1) + port_map[match.group(2)],
+        content,
+    )
+    return content
+
+
 content = set_agent_model(content, "scenarios.security_arena.agents.attacker.agent", attacker_model)
 content = set_agent_model(content, "scenarios.security_arena.agents.defender.agent", defender_model)
 content = set_agent_model(content, "scenarios.security_arena.agents.normal_user.agent", normal_user_model)
 content = set_agent_env(content, "scenarios.security_arena.agents.attacker.agent", "ATTACKER")
 content = set_agent_env(content, "scenarios.security_arena.agents.defender.agent", "DEFENDER")
 content = set_agent_env(content, "scenarios.security_arena.agents.normal_user.agent", "NORMAL_USER")
+content = set_port_offset(content, port_offset)
+Path(toml).parent.mkdir(parents=True, exist_ok=True)
 Path(toml).write_text(content, encoding="utf-8")
 PY
 
@@ -171,14 +211,20 @@ PY
       uv run agentbeats-run "$TOML" 2>&1 | tail -40 || {
         echo "WARNING: battle failed, continuing with next"
       }
+
+    if [ "$REP_PAUSE_SECONDS" -gt 0 ] && [ "$COUNT" -lt "$TOTAL" ]; then
+      echo "Pausing ${REP_PAUSE_SECONDS}s before next rep..."
+      sleep "$REP_PAUSE_SECONDS"
+    fi
   done
 done
 
 ELAPSED=$(( $(date +%s) - START_TIME ))
+AGGREGATE_ROOT="$(dirname "$OUTROOT")"
 echo ""
 echo "============================================================"
 echo "DONE. Elapsed: ${ELAPSED}s"
 echo "Refresh tables with:"
-echo "  python -X utf8 scripts/tag_patterns.py results/cross_smoke"
-echo "  python -X utf8 scripts/aggregate_benchmark.py results/cross_smoke"
+echo "  python -X utf8 scripts/tag_patterns.py \"${AGGREGATE_ROOT}\""
+echo "  python -X utf8 scripts/aggregate_benchmark.py \"${AGGREGATE_ROOT}\""
 echo "============================================================"

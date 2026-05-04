@@ -247,7 +247,7 @@ This produces:
 results/model_sweep/gpt_5_5/cross_smoke/A_qc_vs_D_latest/<scenario>_rep<N>/result.json
 ```
 
-Use a different `OUTROOT` for each model so results do not overwrite or skip each other.
+If `OUTROOT` is unset, the runners append a role/model slug automatically, for example `A_gpt_5_5__D_gpt_5_5__N_gpt_5_5`. Set `OUTROOT` only when you want a custom location.
 
 ## 5. Aggregate Results
 
@@ -302,51 +302,62 @@ python -X utf8 scripts/aggregate_benchmark.py results/model_sweep/gpt_5_5_medica
 
 ## 7. Suggested Model Sweep Pattern
 
-Run one model at a time. Start each model with `REPS=1`; then increase to `REPS=10` after it succeeds.
+Start each model with `REPS=1`; then increase to `REPS=5` or `REPS=10` after it succeeds. Keep the attacker, defender, scenarios, and repetition count fixed when comparing models.
 
-Linux or Git Bash:
-
-```bash
-MODEL=gpt-5.5 \
-REPS=1 \
-OUTROOT="results/model_sweep/gpt_5_5/cross_smoke/A_qc_vs_D_latest" \
-bash scripts/run_smoke_dlatest.sh
-```
-
-Windows PowerShell:
-
-```powershell
-$env:MODEL = "gpt-5.5"
-$env:REPS = "1"
-$env:SHOW_LOGS = "1" 
-$env:OUTROOT = "results/model_sweep/gpt_5_5/cross_smoke/A_qc_vs_D_latest"
-powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
-Remove-Item Env:MODEL, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue
-```
-
-For a second model, change both `MODEL` and `OUTROOT`:
-
-Linux or Git Bash:
+For a sequential Linux or Git Bash sweep, run each model with a different `MODEL`. Leave `OUTROOT` unset unless you want a custom path; the runner creates model-specific result directories automatically.
 
 ```bash
-MODEL=gpt-5.4-mini \
-REPS=1 \
-OUTROOT="results/model_sweep/gpt_5_4_mini/cross_smoke/A_qc_vs_D_latest" \
-bash scripts/run_smoke_dlatest.sh
+for model in \
+  "openai/gpt-oss-20b" \
+  "anthropic/claude-sonnet-4.6" \
+  "z-ai/glm-5.1"
+do
+  MODEL="$model" \
+  SCENARIOS="portfolioiq thingularity gymjailbreak resume_downgrade medical_records" \
+  REPS=5 \
+  REP_PAUSE_SECONDS=120 \
+  bash scripts/run_smoke_dlatest.sh
+done
 ```
 
-Windows PowerShell:
+To run multiple Bash jobs yourself in parallel, assign a unique `PORT_OFFSET` for each job. The base ports are `9010/9020/9021/9022`, so `PORT_OFFSET=100` uses `9110/9120/9121/9122`.
+
+```bash
+MODEL="anthropic/claude-sonnet-4.6" PORT_OFFSET=100 bash scripts/run_smoke_dlatest.sh &
+MODEL="openai/gpt-5.5" PORT_OFFSET=200 bash scripts/run_smoke_dlatest.sh &
+MODEL="z-ai/glm-5.1" PORT_OFFSET=300 bash scripts/run_smoke_dlatest.sh &
+wait
+```
+
+For Windows PowerShell, use the sweep wrapper to run many models at the same time. It starts one job per model, assigns port offsets automatically, and flushes intermediate logs every few seconds.
 
 ```powershell
-$env:MODEL = "gpt-5.4-mini"
-$env:REPS = "1"
-$env:SHOW_LOGS = "1" 
-$env:OUTROOT = "results/model_sweep/gpt_5_4_mini/cross_smoke/A_qc_vs_D_latest"
-powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest.ps1
-Remove-Item Env:MODEL, Env:REPS, Env:OUTROOT -ErrorAction SilentlyContinue
+$env:MODELS = "anthropic/claude-sonnet-4.6 openai/gpt-5.5 z-ai/glm-5.1 minimax/minimax-m2.7 xiaomi/mimo-v2.5-pro"
+$env:SCENARIOS = "portfolioiq thingularity gymjailbreak resume_downgrade medical_records"
+$env:REPS = "5"
+$env:REP_PAUSE_SECONDS = "120"
+$env:MAX_PARALLEL_MODELS = "5"
+$env:LOG_POLL_SECONDS = "5"
+$env:SHOW_LOGS = "1"
+powershell -ExecutionPolicy Bypass -File scripts/run_smoke_dlatest_sweep.ps1
 ```
 
-Keep the attacker, defender, scenarios, and repetition count fixed when comparing models. Otherwise the rows are not directly comparable.
+Default PowerShell sweep ports:
+
+```text
+sweep_001: 9110/9120/9121/9122
+sweep_002: 9210/9220/9221/9222
+sweep_003: 9310/9320/9321/9322
+sweep_004: 9410/9420/9421/9422
+sweep_005: 9510/9520/9521/9522
+```
+
+Provider-prefixed model IDs such as `anthropic/...`, `z-ai/...`, `minimax/...`, and `xiaomi/...` usually require an OpenAI-compatible router such as OpenRouter:
+
+```text
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=sk-or-...
+```
 
 ## Windows Notes
 
