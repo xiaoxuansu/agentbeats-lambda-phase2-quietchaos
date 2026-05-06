@@ -7,6 +7,7 @@ and processes formatted input according to the scenario.
 """
 
 import argparse
+import asyncio
 import base64
 import json
 import logging
@@ -24,7 +25,14 @@ from jinja2 import Environment, FileSystemLoader
 
 load_dotenv()
 
-from openai import AsyncOpenAI
+from openai import (
+    AsyncOpenAI,
+    APIConnectionError,
+    APIError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 
 # Load templates
 _template_dir = Path(__file__).parent / "templates"
@@ -70,11 +78,16 @@ class ScenarioContext:
 class Defender(AgentExecutor):
     """Defender that processes inputs according to scenario context."""
 
+    # Retry configuration for transient request failures.
+    _MAX_RETRIES = 3
+    _RETRY_BACKOFF_BASE_SEC = 2.0
+
     def __init__(self, model: str = "openai/gpt-oss-20b"):
         self.client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL"),
-            timeout=60.0,  # 4 calls × 55s = 220s < 240s limit — 20s safety margin
+            timeout=None,
+            max_retries=0,
         )
         self.model = model
 
@@ -956,15 +969,43 @@ class Defender(AgentExecutor):
         return template.render(**vars(ctx))
 
     async def _generate(self, system: str, user: str) -> str:
-        """Generate a response from the LLM."""
-        try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}]
-            )
-        except json.JSONDecodeError as exc:
-            logger.warning("LLM response was not valid JSON; using empty fallback: %s", exc)
-            return ""
+        """Generate a response from the LLM with explicit retry-on-failure.
+
+        Transient request failures (connection / timeout / rate-limit / 5xx)
+        are retried with exponential backoff. Once retries are exhausted the
+        last exception is re-raised so the caller fails loudly instead of
+        silently returning an empty string.
+        """
+        last_exc: Exception | None = None
+        for attempt in range(self._MAX_RETRIES + 1):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                )
+                break
+            except (
+                APIConnectionError,
+                APITimeoutError,
+                RateLimitError,
+                InternalServerError,
+            ) as exc:
+                last_exc = exc
+                if attempt >= self._MAX_RETRIES:
+                    logger.error(
+                        "LLM request failed after %d retries: %s",
+                        self._MAX_RETRIES, exc,
+                    )
+                    raise
+                delay = self._RETRY_BACKOFF_BASE_SEC * (2 ** attempt)
+                logger.warning(
+                    "LLM request failed (attempt %d/%d): %s — retrying in %.1fs",
+                    attempt + 1, self._MAX_RETRIES + 1, exc, delay,
+                )
+                await asyncio.sleep(delay)
 
         choices = getattr(response, "choices", None) or []
         if not choices:
