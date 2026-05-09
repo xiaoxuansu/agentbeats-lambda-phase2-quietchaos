@@ -29,7 +29,6 @@ from openai import (
     AsyncOpenAI,
     APIConnectionError,
     APIError,
-    APITimeoutError,
     InternalServerError,
     RateLimitError,
 )
@@ -971,9 +970,9 @@ class Defender(AgentExecutor):
     async def _generate(self, system: str, user: str) -> str:
         """Generate a response from the LLM with explicit retry-on-failure.
 
-        Transient request failures (connection / timeout / rate-limit / 5xx)
-        are retried with exponential backoff. Once retries are exhausted the
-        last exception is re-raised so the caller fails loudly instead of
+        Transient request failures (connection / rate-limit / 5xx) are retried
+        with exponential backoff. Once retries are exhausted the last exception
+        is re-raised so the caller fails loudly instead of
         silently returning an empty string.
         """
         last_exc: Exception | None = None
@@ -989,7 +988,6 @@ class Defender(AgentExecutor):
                 break
             except (
                 APIConnectionError,
-                APITimeoutError,
                 RateLimitError,
                 InternalServerError,
             ) as exc:

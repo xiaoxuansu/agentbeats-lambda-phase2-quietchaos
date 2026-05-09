@@ -722,13 +722,13 @@ class Attacker(AgentExecutor):
         self.client = AsyncOpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL"),
-            timeout=60.0,  # 4 calls × 45s = 180s < 240s — 60s safety margin
+            timeout=None,
         )
         # Synchronous client for CC-BOS engine (asyncio.to_thread compatible)
         self.sync_client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL"),
-            timeout=60.0,  # same budget for CC-BOS Call 1
+            timeout=None,
         )
         self.model = model
         self.round_data: dict[int, dict[str, Any]] = {}
